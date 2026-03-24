@@ -43,12 +43,65 @@ async function callWithRetry(apiKey, operation, maxRetries = 3) {
   throw lastError;
 }
 
-export async function analyzeChannelData(provider, apiKey, channelData, recentVideos) {
-  const finalApiKey = apiKey || ENV_API_KEY;
-  if (!finalApiKey) {
-    throw new Error(`API Key for ${provider} is missing. Please configure it in AI Settings.`);
+/**
+ * Core processor for AI calls
+ * Routes between local (client-side) and serverless (server-side) based on config
+ */
+async function processAICall(provider, apiKey, options) {
+  const useServerless = import.meta.env.VITE_USE_SERVERLESS === 'true' || import.meta.env.PROD;
+  const localApiKey = apiKey || ENV_API_KEY;
+
+  // Use local call if we have an API key AND either not in production or serverless is explicitly disabled
+  if (localApiKey && !useServerless) {
+    return await callWithRetry(localApiKey, async (model) => {
+      if (options.history) {
+        const geminiHistory = [
+          { role: "user", parts: [{ text: options.systemMessage }] },
+          { role: "model", parts: [{ text: "Understood." }] }
+        ];
+        for (const msg of options.history) {
+          const r = (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user';
+          const text = msg.content || (msg.parts && msg.parts[0]?.text);
+          if (text) geminiHistory.push({ role: r, parts: [{ text }] });
+        }
+        const chat = model.startChat({ history: geminiHistory });
+        const result = await chat.sendMessage(options.userMessage);
+        return result.response.text();
+      } else {
+        const prompt = options.systemMessage ? `${options.systemMessage}\n\n${options.userMessage}` : options.userMessage;
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+      }
+    });
   }
 
+  // Otherwise, route through serverless function (Secure way)
+  try {
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...options,
+        apiKey: localApiKey // Optional, server will use process.env.GEMINI_API_KEY as primary
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Serverless Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.text;
+  } catch (err) {
+    if (import.meta.env.DEV && !useServerless) {
+      throw new Error(`AI Request failed. Please check your local VITE_GEMINI_API_KEY in .env.local.`);
+    }
+    throw err;
+  }
+}
+
+export async function analyzeChannelData(provider, apiKey, channelData, recentVideos) {
   const systemMessage = `You are a YouTube Growth Expert. Analyze the following channel data and provide 3 actionable growth tips and 1 content trend. Format your response in simple markdown with:
 ### Growth Strategy
 (Expert analysis here)
@@ -61,28 +114,10 @@ Total Views: ${channelData.totalViews}
 Recent Videos:
 ${recentVideos.slice(0, 5).map(v => `- ${v.title} (${v.views} views, ${v.likes} likes)`).join('\n')}`;
 
-  if (provider === 'gemini' || provider === 'default') {
-    const keyToUse = provider === 'default' ? ENV_API_KEY : finalApiKey;
-    if (provider === 'default' && !ENV_API_KEY) {
-      throw new Error("Default App API Key is missing. Please check VITE_GEMINI_API_KEY in .env.local.");
-    }
-
-    return await callWithRetry(keyToUse, async (model) => {
-      const prompt = `${systemMessage}\n\n${userMessage}`;
-      const result = await model.generateContent(prompt);
-      return result.response.text();
-    });
-  }
-
-  return await callGenericCompletion(provider, finalApiKey, systemMessage, userMessage);
+  return await processAICall(provider, apiKey, { systemMessage, userMessage });
 }
 
 export async function chatWithAI(provider, apiKey, userMessage, channelData, recentVideos, history = []) {
-  const finalApiKey = apiKey || ENV_API_KEY;
-  if (!finalApiKey) {
-    throw new Error(`API Key for ${provider} is missing. Please configure it in AI Settings.`);
-  }
-
   const systemMessage = `You are "SocialIQ AI", a specialized assistant for YouTube creators.
 Channel Data: ${JSON.stringify(channelData)}
 Recent Performance: ${JSON.stringify(recentVideos.slice(0, 3))}
@@ -90,46 +125,15 @@ Recent Performance: ${JSON.stringify(recentVideos.slice(0, 3))}
 Answer the creator's questions based on their data. Keep it motivating, technical, and concise. 
 Use Vietnamese if the user asks in Vietnamese.`;
 
-  if (provider === 'gemini' || provider === 'default') {
-    const keyToUse = provider === 'default' ? ENV_API_KEY : finalApiKey;
-    if (provider === 'default' && !ENV_API_KEY) {
-      throw new Error("Default App API Key is missing. Please check VITE_GEMINI_API_KEY in .env.local.");
-    }
-
-    return await callWithRetry(keyToUse, async (model) => {
-      // Map history to Gemini format
-      const geminiHistory = [
-        { role: "user", parts: [{ text: systemMessage }] },
-        { role: "model", parts: [{ text: "Understood. I am ready to help you grow your channel!" }] }
-      ];
-
-      for (const msg of history) {
-        const r = (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user';
-        const text = msg.content || (msg.parts && msg.parts[0]?.text);
-        if (text) {
-          geminiHistory.push({ role: r, parts: [{ text }] });
-        }
-      }
-
-      const chat = model.startChat({ history: geminiHistory });
-      const result = await chat.sendMessage(userMessage);
-      return result.response.text();
-    });
-  }
-
-  return await callGenericCompletion(provider, finalApiKey, systemMessage, userMessage, history);
+  return await processAICall(provider, apiKey, { systemMessage, userMessage, history });
 }
 
 /**
  * Specialized analysis for exported Studio data
  */
 export async function analyzeExportedData(apiKey, topVideosText) {
-  const finalApiKey = apiKey || ENV_API_KEY;
-  if (!finalApiKey) {
-    throw new Error("Gemini API Key is missing.");
-  }
-
-  const prompt = `You are a YouTube Analytics expert. Analyze this exported channel data detailing my top 10 videos:
+  const systemMessage = "You are a YouTube Analytics expert.";
+  const userMessage = `Analyze this exported channel data detailing my top 10 videos:
 ${topVideosText}
 
 Provide a short, direct analysis in Vietnamese. Format as Markdown.
@@ -138,44 +142,19 @@ Include:
 2. "Điểm cần cải thiện" (What underperformed)
 3. "Chiến lược nội dung" (1-2 recommendations for my next video)`;
 
-  return await callWithRetry(finalApiKey, async (model) => {
-    const result = await model.generateContent(prompt);
-    return result.response.text();
-  });
+  return await processAICall('gemini', apiKey, { systemMessage, userMessage });
 }
 
 /**
  * Interactive chat for exported Studio data
  */
 export async function chatWithExportedData(apiKey, topVideosText, userMessage, history = []) {
-  const finalApiKey = apiKey || ENV_API_KEY;
-  if (!finalApiKey) {
-    throw new Error("Gemini API Key is missing.");
-  }
-
   const systemMessage = `You are a YouTube Analytics expert. You have access to my top channel data:
 ${topVideosText}
 
 Answer my questions about this data in Vietnamese. Be technical, direct, and actionable.`;
 
-  return await callWithRetry(finalApiKey, async (model) => {
-    const geminiHistory = [
-      { role: "user", parts: [{ text: systemMessage }] },
-      { role: "model", parts: [{ text: "Tôi đã sẵn sàng phân tích dữ liệu YouTube của bạn. Bạn muốn biết biết thêm điều gì?" }] }
-    ];
-
-    for (const msg of history) {
-      const r = (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user';
-      const text = msg.content || (msg.parts && msg.parts[0]?.text);
-      if (text) {
-        geminiHistory.push({ role: r, parts: [{ text }] });
-      }
-    }
-
-    const chat = model.startChat({ history: geminiHistory });
-    const result = await chat.sendMessage(userMessage);
-    return result.response.text();
-  });
+  return await processAICall('gemini', apiKey, { systemMessage, userMessage, history });
 }
 
 // Generic completion wrapper for OpenAI-compatible APIs and Anthropic

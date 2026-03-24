@@ -86,16 +86,32 @@ async function processAICall(provider, apiKey, options) {
       })
     });
 
+    const contentType = response.headers.get("content-type");
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Serverless Error: ${response.status}`);
+      let errorMessage = `Serverless Error: ${response.status}`;
+      if (contentType && contentType.includes("application/json")) {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } else {
+        // Handle cases where the endpoint returns HTML (like Vite's 404 during dev)
+        const text = await response.text();
+        if (text.includes('<!DOCTYPE html>') || response.status === 404) {
+          errorMessage = "AI Proxy endpoint not found. If you are developing locally, please ensure you have VITE_GEMINI_API_KEY in .env.local or use 'vercel dev'.";
+        }
+      }
+      throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-    return data.text;
+    if (contentType && contentType.includes("application/json")) {
+      const data = await response.json();
+      return data.text;
+    } else {
+      throw new Error("Received non-JSON response from AI server.");
+    }
   } catch (err) {
-    if (import.meta.env.DEV && !useServerless) {
-      throw new Error(`AI Request failed. Please check your local VITE_GEMINI_API_KEY in .env.local.`);
+    if (import.meta.env.DEV && !localApiKey) {
+      throw new Error(`AI Request failed. Please check your local VITE_GEMINI_API_KEY in .env.local or run 'vercel dev' to test serverless functions.`);
     }
     throw err;
   }

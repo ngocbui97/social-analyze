@@ -6,8 +6,9 @@ export const isAIEnabled = !!ENV_API_KEY;
 
 // Available models in order of preference (preview/fast first, then stable fallbacks)
 // We use a mix of specific versions and aliases to ensure maximum compatibility
+// [RULE: DO NOT MODIFY]
 const GEMINI_MODELS = [
-  "gemini-2.5-flash"                 // Powerful fallback if others fail
+  "gemini-2.5-flash",          // Very fast, reliable
 ];
 
 /**
@@ -28,7 +29,7 @@ async function callWithRetry(apiKey, operation, maxRetries = 3) {
         const isTransient = err.message?.includes('503') || err.message?.includes('429') || err.message?.toLowerCase().includes('high demand');
 
         if (!isTransient || i === maxRetries) {
-          // If not transient or last retry for this model, break to try next model or throw
+          // If not transient (e.g. 404) or last retry for this model, break to try next model or throw
           break;
         }
 
@@ -103,11 +104,10 @@ Use Vietnamese if the user asks in Vietnamese.`;
       ];
 
       for (const msg of history) {
-        if (msg.role === 'user' || msg.role === 'model') {
-          geminiHistory.push({ role: msg.role, parts: msg.parts });
-        } else {
-          const r = msg.role === 'assistant' ? 'model' : 'user';
-          geminiHistory.push({ role: r, parts: [{ text: msg.content || msg.parts?.[0]?.text }] });
+        const r = (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user';
+        const text = msg.content || (msg.parts && msg.parts[0]?.text);
+        if (text) {
+          geminiHistory.push({ role: r, parts: [{ text }] });
         }
       }
 
@@ -140,6 +140,40 @@ Include:
 
   return await callWithRetry(finalApiKey, async (model) => {
     const result = await model.generateContent(prompt);
+    return result.response.text();
+  });
+}
+
+/**
+ * Interactive chat for exported Studio data
+ */
+export async function chatWithExportedData(apiKey, topVideosText, userMessage, history = []) {
+  const finalApiKey = apiKey || ENV_API_KEY;
+  if (!finalApiKey) {
+    throw new Error("Gemini API Key is missing.");
+  }
+
+  const systemMessage = `You are a YouTube Analytics expert. You have access to my top channel data:
+${topVideosText}
+
+Answer my questions about this data in Vietnamese. Be technical, direct, and actionable.`;
+
+  return await callWithRetry(finalApiKey, async (model) => {
+    const geminiHistory = [
+      { role: "user", parts: [{ text: systemMessage }] },
+      { role: "model", parts: [{ text: "Tôi đã sẵn sàng phân tích dữ liệu YouTube của bạn. Bạn muốn biết biết thêm điều gì?" }] }
+    ];
+
+    for (const msg of history) {
+      const r = (msg.role === 'model' || msg.role === 'assistant') ? 'model' : 'user';
+      const text = msg.content || (msg.parts && msg.parts[0]?.text);
+      if (text) {
+        geminiHistory.push({ role: r, parts: [{ text }] });
+      }
+    }
+
+    const chat = model.startChat({ history: geminiHistory });
+    const result = await chat.sendMessage(userMessage);
     return result.response.text();
   });
 }

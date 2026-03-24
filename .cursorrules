@@ -1,0 +1,3 @@
+# Project Rules
+
+- **GEMINI_MODELS Protection**: The `GEMINI_MODELS` constant in `src/services/ai.js` is set to `["gemini-2.5-flash"]` per user's specific request and MUST NOT be modified or "corrected" by the AI assistant without explicit user consent.

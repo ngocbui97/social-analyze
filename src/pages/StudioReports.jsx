@@ -1,10 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import Topbar from '../components/Topbar';
-import { Upload, FileSpreadsheet, BarChart2, PieChart as PieChartIcon, Settings, Wand2, RefreshCw, AlertCircle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, ZAxis, PieChart, Pie, Cell } from 'recharts';
+import { 
+  Upload, FileSpreadsheet, BarChart2, PieChart as PieChartIcon, 
+  Settings, Wand2, RefreshCw, AlertCircle, MessageSquare, 
+  Send, User, Bot, Trash2, ArrowRight, TrendingUp, Info
+} from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, ScatterChart, Scatter, ZAxis, 
+  PieChart, Pie, Cell, LineChart, Line, Legend
+} from 'recharts';
 import { useTracker } from '../hooks/useTracker';
-import { analyzeExportedData } from '../services/ai';
+import { analyzeExportedData, chatWithExportedData } from '../services/ai';
 
 const COLORS = ['#4f7dff', '#ff3b5c', '#22d3a5', '#f5c542', '#a05bff', '#ff8b4f', '#00b7ff', '#e042d8'];
 
@@ -19,8 +27,48 @@ export default function StudioReports() {
   
   const [aiInsight, setAiInsight] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  
+  // AI Chat States
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
+  const chatEndRef = useRef(null);
 
-  const handleFileUpload = (e) => {
+  // Persistence: Load on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('studio_report_data');
+    const savedFileName = localStorage.getItem('studio_report_filename');
+    const savedChat = localStorage.getItem('studio_report_chat');
+    
+    if (savedData) setData(JSON.parse(savedData));
+    if (savedFileName) setFileName(savedFileName);
+    if (savedChat) setChatHistory(JSON.parse(savedChat));
+  }, []);
+
+  // Persistence: Save on change
+  useEffect(() => {
+    if (data.length > 0) {
+      localStorage.setItem('studio_report_data', JSON.stringify(data));
+      localStorage.setItem('studio_report_filename', fileName);
+    }
+  }, [data, fileName]);
+
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      localStorage.setItem('studio_report_chat', JSON.stringify(chatHistory));
+    }
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  const clearData = () => {
+    setData([]);
+    setFileName('');
+    setChatHistory([]);
+    localStorage.removeItem('studio_report_data');
+    localStorage.removeItem('studio_report_filename');
+    localStorage.removeItem('studio_report_chat');
+  };
+   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -44,27 +92,50 @@ export default function StudioReports() {
           throw new Error("Tệp không có dữ liệu!");
         }
 
-        // Vietnamese column parsing logic
+        // Header mapping helper
+        const findKey = (row, keywords) => {
+          const keys = Object.keys(row);
+          return keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw.toLowerCase())));
+        };
+
+        const firstRow = rawData[0];
+        const keyMap = {
+          id: findKey(firstRow, ['Nội dung', 'Content', 'Video ID']),
+          title: findKey(firstRow, ['Tiêu đề', 'Title']),
+          views: findKey(firstRow, ['Số lượt xem', 'Views']),
+          watchTime: findKey(firstRow, ['Thời gian xem', 'Watch time']),
+          ctr: findKey(firstRow, ['Tỷ lệ nhấp', 'CTR', 'Click-through rate']),
+          retention: findKey(firstRow, ['Ở lại xem', 'Retention', 'Average percentage viewed']),
+          newViewers: findKey(firstRow, ['Người xem mới', 'New viewers']),
+          returningViewers: findKey(firstRow, ['Người xem cũ', 'Returning viewers']),
+          subscribers: findKey(firstRow, ['Người đăng ký', 'Subscribers', 'Subs']),
+          impressions: findKey(firstRow, ['Lượt hiển thị', 'Impressions'])
+        };
+
         const parsed = rawData
-          .filter(row => row['Nội dung'] && row['Nội dung'] !== 'Tổng' && row['Tiêu đề video'])
+          .filter(row => {
+            const idVal = row[keyMap.id] || '';
+            const titleVal = row[keyMap.title] || '';
+            return idVal && idVal !== 'Tổng' && idVal !== 'Total' && titleVal;
+          })
           .map(row => {
-            return {
-              id: row['Nội dung'],
-              title: row['Tiêu đề video'],
-              views: Number(row['Số lượt xem'] || 0),
-              watchTime: Number(row['Thời gian xem (giờ)'] || 0),
-              ctr: Number(row['Tỷ lệ nhấp của số lượt hiển thị hình thu nhỏ (%)'] || 0),
-              retention: Number(row['Ở lại xem (%)'] || 0),
-              newViewers: Number(row['Người xem mới'] || 0),
-              returningViewers: Number(row['Người xem cũ'] || 0),
-              subscribers: Number(row['Số người đăng ký'] || 0),
-              impressions: Number(row['Lượt hiển thị hình thu nhỏ'] || 0)
-            };
+            const item = { ...row }; // Keep original data for dynamic table
+            item.id = row[keyMap.id];
+            item.title = row[keyMap.title];
+            item.views = Number(row[keyMap.views] || 0);
+            item.watchTime = Number(row[keyMap.watchTime] || 0);
+            item.ctr = Number(row[keyMap.ctr] || 0);
+            item.retention = Number(row[keyMap.retention] || 0);
+            item.newViewers = Number(row[keyMap.newViewers] || 0);
+            item.returningViewers = Number(row[keyMap.returningViewers] || 0);
+            item.subscribers = Number(row[keyMap.subscribers] || 0);
+            item.impressions = Number(row[keyMap.impressions] || 0);
+            return item;
           })
           .sort((a, b) => b.views - a.views);
 
         if (parsed.length === 0) {
-          throw new Error("Không tìm thấy video hợp lệ trong file. Vui lòng đảm bảo bạn đang dùng file export từ YouTube Studio (tiếng Việt).");
+          throw new Error("Không thể nhận diện các cột dữ liệu quan trọng. Vui lòng kiểm tra lại định dạng file.");
         }
 
         setData(parsed);
@@ -94,22 +165,49 @@ export default function StudioReports() {
     }
 
     setAiLoading(true);
-    setError(''); // Clear previous errors
+    setError('');
     try {
-      // Get top 10 videos to send to AI
       const topVidsText = data.slice(0, 10).map(v => 
         `- "${v.title}": ${v.views} views, CTR ${v.ctr}%, Retention ${v.retention}%, Subs Gained: ${v.subscribers}`
       ).join('\n');
 
       const result = await analyzeExportedData(apiKey, topVidsText);
-      setAiInsight(result);
+      
+      const initialMessage = { role: 'model', content: result };
+      setChatHistory([initialMessage]);
+      setChatOpen(true);
+      setAiInsight(result); // Legacy support for original UI block
     } catch (err) {
       console.error(err);
       let msg = err.message;
       if (msg.includes('503') || msg.toLowerCase().includes('high demand')) {
-        msg = "Hệ thống AI đang quá tải (503). Chúng tôi đã tự động thử lại nhiều lần nhưng chưa thành công. Vui lòng thử lại sau ít phút hoặc kiểm tra lại API Key.";
+        msg = "Hệ thống AI đang quá tải. Đã thử lại nhưng chưa thành công.";
       }
-      setError("Lỗi khi kết nối AI: " + msg);
+      setError("Lỗi AI: " + msg);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || aiLoading) return;
+
+    const userMsg = chatInput.trim();
+    setChatInput('');
+    setChatHistory(prev => [...prev, { role: 'user', content: userMsg }]);
+    setAiLoading(true);
+
+    try {
+      const apiKey = localStorage.getItem('ai_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
+      const topVidsText = data.slice(0, 10).map(v => 
+        `- "${v.title}": ${v.views} views, CTR ${v.ctr}%, Retention ${v.retention}%, Subs Gained: ${v.subscribers}`
+      ).join('\n');
+
+      const response = await chatWithExportedData(apiKey, topVidsText, userMsg, chatHistory);
+      setChatHistory(prev => [...prev, { role: 'model', content: response }]);
+    } catch (err) {
+      setError("Lỗi Chat: " + err.message);
     } finally {
       setAiLoading(false);
     }
@@ -166,42 +264,44 @@ export default function StudioReports() {
             </span>
           </div>
           
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              width: '100%', maxWidth: '400px', height: '120px',
-              border: '2px dashed var(--border)', borderRadius: '12px',
-              background: 'var(--bg-secondary)', cursor: 'pointer',
-              transition: 'all 0.2s', color: 'var(--text-secondary)'
-            }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-            >
-              <Upload size={28} style={{ marginBottom: '12px', color: 'var(--accent-blue)' }} />
-              <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>Chọn file Excel/CSV</span>
-              <span style={{ fontSize: '12px', marginTop: '4px' }}>Hỗ trợ file xuất từ YouTube Studio</span>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-                accept=".xlsx,.xls,.csv" 
-                style={{ display: 'none' }} 
-              />
-            </label>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                <label style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  flex: 1, maxWidth: '400px', height: '120px',
+                  border: '2px dashed var(--border)', borderRadius: '12px',
+                  background: 'var(--bg-secondary)', cursor: 'pointer',
+                  transition: 'all 0.2s', color: 'var(--text-secondary)'
+                }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                >
+                  <Upload size={28} style={{ marginBottom: '12px', color: 'var(--accent-blue)' }} />
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>Chọn file Excel/CSV mới</span>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    accept=".xlsx,.xls,.csv" 
+                    style={{ display: 'none' }} 
+                  />
+                </label>
 
-            {fileName && (
-              <div style={{ padding: '16px', background: 'rgba(34, 211, 165, 0.1)', borderRadius: '12px', border: '1px solid rgba(34, 211, 165, 0.2)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ background: 'var(--accent-green)', color: '#000', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-green)' }}>Đã đọc thành công</div>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{fileName}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Phân tích được {data.length} hàng dữ liệu</div>
-                </div>
+                {fileName && (
+                  <div style={{ padding: '16px', background: 'rgba(34, 211, 165, 0.1)', borderRadius: '12px', border: '1px solid rgba(34, 211, 165, 0.2)', display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                    <div style={{ background: 'var(--accent-green)', color: '#000', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-green)' }}>Đang hiển thị dữ liệu từ</div>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{fileName}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{data.length} hàng dữ liệu</div>
+                    </div>
+                    <button onClick={clearData} className="btn btn-ghost" style={{ color: 'var(--accent-red)', padding: '8px' }} title="Xóa dữ liệu">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
+                
+                {parsing && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</div>}
               </div>
-            )}
-            
-            {parsing && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</div>}
-          </div>
 
           {error && (
             <div className="animate-fade-in" style={{ marginTop: '16px', padding: '12px', background: 'var(--accent-red-dim)', borderRadius: '8px', border: '1px solid rgba(255,59,92,0.3)', color: 'var(--accent-red)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -213,36 +313,87 @@ export default function StudioReports() {
         {/* Dashboards - Only show when data is loaded */}
         {data.length > 0 && (
           <div className="animate-fade-in">
-            
-            {/* AI Call To Action */}
-            <div className="card" style={{ marginBottom: '24px', background: 'linear-gradient(135deg, rgba(155, 89, 245, 0.1), rgba(79, 125, 255, 0.1))', borderColor: 'rgba(155, 89, 245, 0.3)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            {/* Stats Overview */}
+            <div className="grid-4" style={{ marginBottom: '24px' }}>
+              <div className="card" style={{ padding: '16px' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>Tổng Lượt xem</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-blue)' }}>{data.reduce((acc, v) => acc + v.views, 0).toLocaleString()}</div>
+              </div>
+              <div className="card" style={{ padding: '16px' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>CTR Trung bình</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-pink)' }}>{(data.reduce((acc, v) => acc + v.ctr, 0) / data.length).toFixed(2)}%</div>
+              </div>
+              <div className="card" style={{ padding: '16px' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>Người xem mới</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-green)' }}>{data.reduce((acc, v) => acc + v.newViewers, 0).toLocaleString()}</div>
+              </div>
+              <div className="card" style={{ padding: '16px' }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>Đăng ký mới</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-purple)' }}>{data.reduce((acc, v) => acc + v.subscribers, 0).toLocaleString()}</div>
+              </div>
+            </div>
+
+            {/* AI Call To Action & Chat */}
+            <div className="card" style={{ marginBottom: '24px', background: 'linear-gradient(135deg, rgba(155, 89, 245, 0.05), rgba(79, 125, 255, 0.05))', borderColor: 'rgba(155, 89, 245, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: chatHistory.length > 0 ? '20px' : 0 }}>
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    <Wand2 size={18} style={{ color: 'var(--accent-purple)' }} /> AI Phân tích chuyên sâu
+                    <Wand2 size={18} style={{ color: 'var(--accent-purple)' }} /> AI Phân tích & Chat chuyên sâu
                   </h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Biến số liệu khô khan thành chiến lược thực tế nhờ sự hỗ trợ của Gemini AI.</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Hỏi AI bất kỳ điều gì về dữ liệu của bạn để tìm ra cơ hội tăng trưởng.</p>
                 </div>
-                <button 
-                  className="btn btn-primary" 
-                  onClick={getAIInsight} 
-                  disabled={aiLoading}
-                  style={{ background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-blue))', border: 'none' }}
-                >
-                  {aiLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang phân tích...</> : <><Settings size={14} /> Bắt đầu phân tích</>}
-                </button>
+                {chatHistory.length === 0 ? (
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={getAIInsight} 
+                    disabled={aiLoading}
+                    style={{ background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-blue))', border: 'none' }}
+                  >
+                    {aiLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</> : <><Settings size={14} /> Bắt đầu phân tích</>}
+                  </button>
+                ) : (
+                  <button className="btn btn-ghost" onClick={() => setChatHistory([])} style={{ fontSize: '12px' }}><Trash2 size={14} /> Xóa hội thoại</button>
+                )}
               </div>
 
-              {aiInsight && (
-                <div className="animate-fade-in" style={{ marginTop: '20px', padding: '20px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)', fontSize: '14px', lineHeight: 1.6 }}>
-                  {aiInsight.split('\n').map((line, idx) => {
-                    if (line.startsWith('### ')) return <h3 key={idx} style={{ marginTop: idx===0?0:'16px', marginBottom: '8px', color: 'var(--accent-blue)', fontSize: '16px' }}>{line.replace('### ', '')}</h3>;
-                    if (line.startsWith('**')) return <strong key={idx} style={{ display: 'block', marginTop: '8px' }}>{line.replace(/\*\*/g, '')}</strong>;
-                    if (line.startsWith('- ')) return <li key={idx} style={{ marginLeft: '16px', color: 'var(--text-secondary)' }}>{line.substring(2)}</li>;
-                    if (line.trim() === '') return <br key={idx} />;
-                    return <p key={idx} style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>{line}</p>;
-                  })}
+              {chatHistory.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '500px', overflowY: 'auto', padding: '16px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  {chatHistory.map((msg, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '12px', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: msg.role === 'user' ? 'var(--accent-blue)' : 'var(--accent-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                      </div>
+                      <div style={{ 
+                        maxWidth: '80%', padding: '12px 16px', borderRadius: '12px', 
+                        background: msg.role === 'user' ? 'rgba(79, 125, 255, 0.1)' : 'var(--bg-secondary)',
+                        color: 'var(--text-primary)', fontSize: '14px', lineHeight: 1.6,
+                        border: '1px solid', borderColor: msg.role === 'user' ? 'rgba(79, 125, 255, 0.2)' : 'var(--border)'
+                      }}>
+                        {msg.content.split('\n').map((line, i) => (
+                          <p key={i} style={{ marginBottom: line.trim() === '' ? '0' : '8px' }}>
+                            {line.startsWith('### ') ? <strong style={{color: 'var(--accent-blue)', display: 'block', marginTop: '10px'}}>{line.replace('### ', '')}</strong> : line}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={chatEndRef} />
                 </div>
+              )}
+
+              {chatHistory.length > 0 && (
+                <form onSubmit={handleSendMessage} style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Hỏi AI thêm về dữ liệu này... (ví dụ: Video nào hút subs nhất?)"
+                    style={{ flex: 1, padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={aiLoading || !chatInput.trim()}>
+                    {aiLoading ? <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} />}
+                  </button>
+                </form>
               )}
             </div>
 
@@ -326,24 +477,28 @@ export default function StudioReports() {
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-hover)' }}>
                       <th style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Tiêu đề Video</th>
-                      <th style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Lượt xem</th>
-                      <th style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>CTR (%)</th>
-                      <th style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Giữ chân (%)</th>
-                      <th style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Subs</th>
+                      {Object.keys(data[0] || {}).filter(k => 
+                        !['id', 'title'].includes(k) && typeof data[0][k] === 'number'
+                      ).map(k => (
+                        <th key={k} style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'capitalize' }}>
+                          {k}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {data.map((row, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding: '12px', fontSize: '13px', fontWeight: 500 }}>
-                          <div style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.title}</div>
+                          <div style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.title}>{row.title}</div>
                         </td>
-                        <td style={{ padding: '12px', fontSize: '13px' }}>{row.views.toLocaleString()}</td>
-                        <td style={{ padding: '12px', fontSize: '13px', color: row.ctr > 5 ? 'var(--accent-green)' : 'inherit' }}>{row.ctr.toFixed(2)}%</td>
-                        <td style={{ padding: '12px', fontSize: '13px' }}>{row.retention.toFixed(2)}%</td>
-                        <td style={{ padding: '12px', fontSize: '13px', color: row.subscribers > 0 ? 'var(--accent-green)' : row.subscribers < 0 ? 'var(--accent-red)' : 'inherit' }}>
-                          {row.subscribers > 0 ? '+' : ''}{row.subscribers}
-                        </td>
+                        {Object.keys(row).filter(k => 
+                          !['id', 'title'].includes(k) && typeof row[k] === 'number'
+                        ).map(k => (
+                          <td key={k} style={{ padding: '12px', fontSize: '13px', color: k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? 'inherit' : 'var(--text-secondary)' }}>
+                            {k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? `${row[k].toFixed(1)}%` : row[k].toLocaleString()}
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>

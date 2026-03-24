@@ -81,6 +81,11 @@ export default function Login() {
           <div className="scope-item">✓ Read channel statistics</div>
           <div className="scope-item">✓ Search YouTube content</div>
         </div>
+
+        <div style={{ marginTop: '24px', display: 'flex', gap: '16px', justifyContent: 'center', fontSize: '11px', color: 'var(--text-secondary)' }}>
+          <a href="/privacy" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}>Privacy Policy</a>
+          <a href="/terms" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}>Terms of Service</a>
+        </div>
       </div>
     </div>
   );

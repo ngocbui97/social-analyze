@@ -14,6 +14,8 @@ import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
 import StudioReports from './pages/StudioReports';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import './index.css';
 import './App.css';
 
@@ -74,6 +76,8 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<PublicRoute />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
             <Route path="/*" element={
               <PrivateRoute>
                 <AppLayout />

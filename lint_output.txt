@@ -1,0 +1,114 @@
+﻿
+> social-analyze@0.0.0 lint
+> eslint .
+
+
+D:\woking space\social-analyze\list-models.js
+  5:18  error  'process' is not defined  no-undef
+
+D:\woking space\social-analyze\src\components\Sidebar.jsx
+  62:32  error  'Icon' is defined but never used  no-unused-vars
+  79:35  error  'Icon' is defined but never used  no-unused-vars
+
+D:\woking space\social-analyze\src\context\AuthContext.jsx
+   33:19  error    Error: Cannot access variable before it is declared
+
+`handleTokenResponse` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+  31 |         client_id: CLIENT_ID,
+  32 |         scope: SCOPES,
+> 33 |         callback: handleTokenResponse,
+     |                   ^^^^^^^^^^^^^^^^^^^ `handleTokenResponse` accessed before it is declared
+  34 |       });
+  35 |       setTokenClient(client);
+  36 |       setLoading(false);
+
+   55 |   }, []);
+   56 |
+>  57 |   const handleTokenResponse = useCallback(async (response) => {
+      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  58 |     if (response.error) {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^
+>  59 |       console.error('[SocialIQ] OAuth error:', response.error);
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^
+>  96 |     }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^
+>  97 |   }, []);
+      | ^^^^^^^^^^ `handleTokenResponse` is declared here
+   98 |
+   99 |   const login = useCallback(() => {
+  100 |     if (tokenClient) {  react-hooks/immutability
+   55:6   warning  React Hook useEffect has a missing dependency: 'handleTokenResponse'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      react-hooks/exhaustive-deps
+  126:17  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              react-refresh/only-export-components
+
+D:\woking space\social-analyze\src\context\ThemeContext.jsx
+  26:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\woking space\social-analyze\src\pages\AIAssistant.jsx
+  28:6  warning  React Hook useEffect has a missing dependency: 'loadData'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\woking space\social-analyze\src\pages\Analytics.jsx
+  41:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  39 |   useEffect(() => {
+  40 |     if (!accessToken) return;
+> 41 |     setLoading(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  42 |     Promise.all([
+  43 |       getChannelStats(accessToken),
+  44 |     ]).then(([ch]) => {  react-hooks/set-state-in-effect
+  81:48  error  'Icon' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+
+D:\woking space\social-analyze\src\pages\Competitors.jsx
+    9:7   error  'competitors' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+   16:7   error  'myChannel' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+   18:7   error  'radarData' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u    no-unused-vars
+  156:42  error  'Icon' is defined but never used                                                             no-unused-vars
+
+D:\woking space\social-analyze\src\pages\Dashboard.jsx
+   69:5   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  67 |   useEffect(() => {
+  68 |     if (!accessToken) return;
+> 69 |     setLoading(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  70 |     setError(null);
+  71 |
+  72 |     Promise.all([  react-hooks/set-state-in-effect
+  101:34  error  'i' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+  137:19  error  'g' is not defined                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   no-undef
+  195:52  error  'Icon' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+
+D:\woking space\social-analyze\src\pages\Keywords.jsx
+  33:7  error    'compColor' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                        no-unused-vars
+  35:7  error    'volLabel' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                         no-unused-vars
+  51:6  warning  React Hook useEffect has a missing dependency: 'handleSearch'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\woking space\social-analyze\src\pages\Login.jsx
+  38:34  error  'Icon' is defined but never used  no-unused-vars
+
+D:\woking space\social-analyze\src\pages\Trending.jsx
+  36:38  warning  React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  52:26  error    'Icon' is defined but never used                                                                         no-unused-vars
+
+D:\woking space\social-analyze\test-ai-2.js
+  6:18  error  'process' is not defined  no-undef
+
+D:\woking space\social-analyze\test-ai.js
+  6:18  error  'process' is not defined  no-undef
+
+Γ£û 26 problems (22 errors, 4 warnings)
+

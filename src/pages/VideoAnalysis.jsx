@@ -4,6 +4,7 @@ import { Link, Tag, FileText, BarChart2, CheckCircle, AlertCircle, XCircle, Ligh
 import Topbar from '../components/Topbar';
 import { useAuth } from '../context/AuthContext';
 import { getVideoDetails, parseVideoId, scoreVideo } from '../services/youtube';
+import { useTranslation } from 'react-i18next';
 import './VideoAnalysis.css';
 
 function IssueItem({ type, text }) {
@@ -18,6 +19,7 @@ function IssueItem({ type, text }) {
 }
 
 function ScoreGauge({ score }) {
+  const { t } = useTranslation();
   const color = score >= 75 ? '#22d3a5' : score >= 50 ? '#f5c542' : '#ff3b5c';
   return (
     <div className="score-gauge">
@@ -28,7 +30,7 @@ function ScoreGauge({ score }) {
         <text x="50" y="55" textAnchor="middle" fill={color} fontSize="18" fontWeight="800">{score}</text>
       </svg>
       <div className="gauge-label" style={{ color }}>
-        {score >= 75 ? '🟢 Great' : score >= 50 ? '🟡 Needs Work' : '🔴 Poor'}
+        {score >= 75 ? `🟢 ${t('videoAnalysis.great')}` : score >= 50 ? `🟡 ${t('videoAnalysis.needsWork')}` : `🔴 ${t('videoAnalysis.poor')}`}
       </div>
     </div>
   );
@@ -39,6 +41,7 @@ function copyToClipboard(text) {
 }
 
 export default function VideoAnalysis() {
+  const { t } = useTranslation();
   useTracker('Video Analysis');
   const { accessToken } = useAuth();
   const [url, setUrl] = useState('');
@@ -51,7 +54,7 @@ export default function VideoAnalysis() {
   const handleAnalyze = async () => {
     const videoId = parseVideoId(url.trim());
     if (!videoId) {
-      setError('Could not parse YouTube video ID. Please enter a valid YouTube URL.');
+      setError(t('videoAnalysis.parseError'));
       return;
     }
     setLoading(true);
@@ -59,7 +62,7 @@ export default function VideoAnalysis() {
     setVideo(null);
     try {
       const data = await getVideoDetails(accessToken, videoId);
-      if (!data) throw new Error('Video not found or is private.');
+      if (!data) throw new Error(t('videoAnalysis.notFound'));
       setVideo(data);
       setScores(scoreVideo({ title: data.title, description: data.description, tags: data.tags }));
     } catch (err) {
@@ -76,14 +79,14 @@ export default function VideoAnalysis() {
   ] : [];
 
   const tabs = scores ? [
-    { id: 'title', label: 'Title', issues: scores.issues.title },
-    { id: 'description', label: 'Description', issues: scores.issues.description },
-    { id: 'tags', label: 'Tags', issues: scores.issues.tags },
+    { id: 'title', label: t('videoAnalysis.titleScore'), issues: scores.issues.title },
+    { id: 'description', label: t('videoAnalysis.descScore'), issues: scores.issues.description },
+    { id: 'tags', label: t('videoAnalysis.tagScore'), issues: scores.issues.tags },
   ] : [];
 
   return (
     <div className="va-page animate-fade-in">
-      <Topbar title="Video Analysis" subtitle="Analyze and optimize real YouTube video SEO" />
+      <Topbar title={t('videoAnalysis.title')} subtitle={t('videoAnalysis.subtitle')} />
       <div className="page-content">
 
         {/* URL Input */}
@@ -95,7 +98,7 @@ export default function VideoAnalysis() {
               className="input-field"
               style={{ flex: 1 }}
               type="text"
-              placeholder="Paste any YouTube URL: https://youtube.com/watch?v=... or youtu.be/..."
+              placeholder={t('videoAnalysis.urlPlaceholder')}
               value={url}
               onChange={e => setUrl(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAnalyze()}
@@ -108,11 +111,11 @@ export default function VideoAnalysis() {
               {loading
                 ? <Loader size={14} style={{ animation: 'spin 0.8s linear infinite' }} />
                 : <BarChart2 size={14} />}
-              {loading ? 'Analyzing...' : 'Analyze'}
+              {loading ? t('videoAnalysis.analyzing') : t('videoAnalysis.analyze')}
             </button>
           </div>
           <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            Supports: youtube.com/watch?v=..., youtu.be/..., youtube.com/shorts/...
+            {t('videoAnalysis.supports')}
           </div>
         </div>
 
@@ -125,7 +128,7 @@ export default function VideoAnalysis() {
         {loading && (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
             <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: 'var(--accent-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-            <div style={{ fontWeight: 600 }}>Fetching video data from YouTube...</div>
+            <div style={{ fontWeight: 600 }}>{t('videoAnalysis.loadingData')}</div>
           </div>
         )}
 
@@ -134,13 +137,13 @@ export default function VideoAnalysis() {
             {/* Left: Scores */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="card">
-                <div className="card-title" style={{ marginBottom: '8px' }}>Overall SEO Score</div>
+                <div className="card-title" style={{ marginBottom: '8px' }}>{t('videoAnalysis.overallScore')}</div>
                 <ScoreGauge score={scores.overall} />
                 <div className="mini-scores">
                   {[
-                    { label: 'Title', score: scores.titleScore },
-                    { label: 'Description', score: scores.descScore },
-                    { label: 'Tags', score: scores.tagScore },
+                    { label: t('videoAnalysis.titleScore'), score: scores.titleScore },
+                    { label: t('videoAnalysis.descScore'), score: scores.descScore },
+                    { label: t('videoAnalysis.tagScore'), score: scores.tagScore },
                   ].map(({ label, score }) => {
                     const c = score >= 75 ? '#22d3a5' : score >= 50 ? '#f5c542' : '#ff3b5c';
                     return (
@@ -158,9 +161,9 @@ export default function VideoAnalysis() {
                 {/* Video Stats */}
                 <div style={{ borderTop: '1px solid var(--border)', marginTop: '16px', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {[
-                    { label: 'Views', value: video.views.toLocaleString() },
-                    { label: 'Likes', value: video.likes.toLocaleString() },
-                    { label: 'Comments', value: video.comments.toLocaleString() },
+                    { label: t('videoAnalysis.views'), value: video.views.toLocaleString() },
+                    { label: t('videoAnalysis.likes'), value: video.likes.toLocaleString() },
+                    { label: t('videoAnalysis.comments'), value: video.comments.toLocaleString() },
                   ].map(({ label, value }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
@@ -169,7 +172,7 @@ export default function VideoAnalysis() {
                   ))}
                   <a href={`https://youtube.com/watch?v=${video.id}`} target="_blank" rel="noreferrer"
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-blue)', fontSize: '12px', marginTop: '4px' }}>
-                    <ExternalLink size={12} /> Open on YouTube
+                    <ExternalLink size={12} /> {t('videoAnalysis.openYoutube')}
                   </a>
                 </div>
               </div>
@@ -178,7 +181,7 @@ export default function VideoAnalysis() {
               <div className="card">
                 <div className="card-title" style={{ marginBottom: '14px' }}>
                   <Lightbulb size={14} style={{ color: 'var(--accent-yellow)', verticalAlign: 'middle', marginRight: '6px' }} />
-                  AI Title Suggestions
+                  {t('videoAnalysis.aiTitleSuggestions')}
                 </div>
                 {aiTitles.map((t, i) => (
                   <div key={i} className="ai-title-row" id={`ai-title-${i}`}>
@@ -196,23 +199,23 @@ export default function VideoAnalysis() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Thumbnail + content */}
               <div className="card">
-                <div className="card-title" style={{ marginBottom: '14px' }}>Video Content</div>
+                <div className="card-title" style={{ marginBottom: '14px' }}>{t('videoAnalysis.videoContent')}</div>
                 {video.thumbnail && (
                   <img src={video.thumbnail} alt={video.title} style={{ width: '100%', borderRadius: 'var(--radius-md)', marginBottom: '16px', objectFit: 'cover', maxHeight: '200px' }} />
                 )}
                 <div className="va-field">
-                  <div className="va-field-label">Title</div>
+                  <div className="va-field-label">{t('videoAnalysis.titleScore')}</div>
                   <div className="va-field-value">{video.title}</div>
                 </div>
                 <div className="va-field">
-                  <div className="va-field-label">Description (first 300 chars)</div>
-                  <div className="va-field-value va-desc">{video.description?.slice(0, 300) || 'No description'}{video.description?.length > 300 ? '...' : ''}</div>
+                  <div className="va-field-label">{t('videoAnalysis.descriptionLabel')}</div>
+                  <div className="va-field-value va-desc">{video.description?.slice(0, 300) || t('videoAnalysis.noDescription')}{video.description?.length > 300 ? '...' : ''}</div>
                 </div>
                 <div className="va-field">
-                  <div className="va-field-label">Tags ({video.tags.length})</div>
+                  <div className="va-field-label">{t('videoAnalysis.tagsCount', { count: video.tags.length })}</div>
                   {video.tags.length > 0
                     ? <div className="va-tags">{video.tags.slice(0, 20).map(tag => <span key={tag} className="tag">{tag}</span>)}</div>
-                    : <div style={{ color: 'var(--accent-red)', fontSize: '12px' }}>⚠️ No tags found — tags are important for discoverability!</div>
+                    : <div style={{ color: 'var(--accent-red)', fontSize: '12px' }}>{t('videoAnalysis.noTagsFound')}</div>
                   }
                 </div>
               </div>
@@ -220,7 +223,7 @@ export default function VideoAnalysis() {
               {/* Issues Panel */}
               <div className="card">
                 <div className="card-header">
-                  <span className="card-title">Optimization Issues</span>
+                  <span className="card-title">{t('videoAnalysis.optimizationIssues')}</span>
                   <div className="va-tabs">
                     {tabs.map(tab => (
                       <button key={tab.id} id={`tab-${tab.id}`}
@@ -245,8 +248,8 @@ export default function VideoAnalysis() {
         {!video && !loading && !error && (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
             <FileText size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Paste a YouTube URL to analyze</div>
-            <div style={{ fontSize: '13px', marginTop: '6px' }}>Get real SEO scores, optimization tips, and AI title suggestions</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('videoAnalysis.emptyTitle')}</div>
+            <div style={{ fontSize: '13px', marginTop: '6px' }}>{t('videoAnalysis.emptyDesc')}</div>
           </div>
         )}
 

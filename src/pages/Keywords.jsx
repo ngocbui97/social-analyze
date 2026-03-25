@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useTracker } from '../hooks/useTracker';
 import { Search, Tag, Lightbulb, Star, ChevronRight, Filter, Loader } from 'lucide-react';
@@ -36,6 +37,7 @@ const compLabel = v => v > 60 ? 'High' : v > 30 ? 'Medium' : 'Low';
 const volLabel = v => v > 70 ? 'Very High' : v > 50 ? 'High' : v > 30 ? 'Medium' : v > 10 ? 'Low' : 'Very Low';
 
 export default function Keywords() {
+  const { t } = useTranslation();
   useTracker('Keyword Research');
   const { accessToken } = useAuth();
   const [searchParams] = useSearchParams();
@@ -70,7 +72,7 @@ export default function Keywords() {
 
   return (
     <div className="kw-page animate-fade-in">
-      <Topbar title="Keyword Research" subtitle="Discover high-opportunity keywords using real YouTube data" />
+      <Topbar title={t('keywords.title')} subtitle={t('keywords.subtitle')} />
       <div className="page-content">
 
         {/* Search Bar */}
@@ -81,7 +83,7 @@ export default function Keywords() {
               id="keyword-search-input"
               className="kw-search-input"
               type="text"
-              placeholder="e.g. react tutorial, ai tools, passive income..."
+              placeholder={t('keywords.searchPlaceholder')}
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -92,12 +94,12 @@ export default function Keywords() {
               disabled={loading}
             >
               {loading ? <Loader size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Search size={14} />}
-              {loading ? 'Analyzing...' : 'Analyze'}
+              {loading ? t('keywords.analyzing') : t('keywords.analyze')}
             </button>
           </div>
           <div className="kw-suggestions">
             <Lightbulb size={12} />
-            <span>Try:</span>
+            <span>{t('keywords.try')}</span>
             {suggestions.map(s => (
               <button key={s} className="tag" onClick={() => handleSearch(s)}>
                 {s}
@@ -116,8 +118,8 @@ export default function Keywords() {
         {loading && (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
             <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: 'var(--accent-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-            <div style={{ fontWeight: 600 }}>Analyzing "{query}" on YouTube...</div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>Scanning real search results & competition</div>
+            <div style={{ fontWeight: 600 }}>{t('keywords.analyzingQuery', { query })}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>{t('keywords.scanning')}</div>
           </div>
         )}
 
@@ -129,15 +131,15 @@ export default function Keywords() {
               {/* Overview Card */}
               <div className="card" style={{ marginBottom: '16px' }}>
                 <div className="card-header">
-                  <span className="card-title">"{result.keyword}" — Analysis Results</span>
-                  <span className="badge badge-blue">{result.totalResults?.toLocaleString()} videos found</span>
+                  <span className="card-title">{t('keywords.searchResultTitle', { keyword: result.keyword })}</span>
+                  <span className="badge badge-blue">{t('keywords.videosFound', { count: result.totalResults?.toLocaleString() })}</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
                   {[
-                    { label: 'Opportunity Score', value: result.opportunityScore, desc: 'Higher = easier to rank' },
-                    { label: 'Volume Score', value: result.volumeScore, desc: `Avg ${formatNumber(result.avgViews)} views/video` },
-                    { label: 'Competition Score', value: result.competitionScore, desc: compLabel(result.competitionScore) + ' competition' },
+                    { label: t('keywords.opportunityScore'), value: result.opportunityScore, desc: t('keywords.higherRanking') },
+                    { label: t('keywords.volumeScore'), value: result.volumeScore, desc: t('keywords.avgViews', { views: formatNumber(result.avgViews) }) },
+                    { label: t('keywords.competitionScore'), value: result.competitionScore, desc: compLabel(result.competitionScore) + ' competition' },
                   ].map(({ label, value, desc }) => (
                     <div key={label} style={{ textAlign: 'center', padding: '16px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
                       <ScoreCircle score={value} />
@@ -150,7 +152,7 @@ export default function Keywords() {
                 {/* Related Keywords */}
                 <div>
                   <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
-                    <Tag size={11} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Related Keywords
+                    <Tag size={11} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {t('keywords.relatedKeywords')}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {result.relatedKeywords.map(k => (
@@ -162,7 +164,7 @@ export default function Keywords() {
 
               {/* Top Videos */}
               <div className="card">
-                <div className="card-title" style={{ marginBottom: '16px' }}>Top Ranking Videos for this Keyword</div>
+                <div className="card-title" style={{ marginBottom: '16px' }}>{t('keywords.topRankingVideos')}</div>
                 {result.topVideos.map((v, i) => (
                   <div key={v.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '10px', borderRadius: 'var(--radius-md)', transition: 'background 0.15s', cursor: 'pointer' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
@@ -174,7 +176,7 @@ export default function Keywords() {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{v.channel} · {formatNumber(v.views)} views</div>
                     </div>
                     <a href={`https://youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', flexShrink: 0 }}>
-                      View
+                      {t('keywords.viewVideo')}
                     </a>
                   </div>
                 ))}
@@ -184,11 +186,11 @@ export default function Keywords() {
             {/* Side Panel */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="card">
-                <div className="card-title" style={{ marginBottom: '16px' }}>📊 Score Breakdown</div>
+                <div className="card-title" style={{ marginBottom: '16px' }}>📊 {t('keywords.scoreBreakdown')}</div>
                 {[
-                  { label: 'Search Volume', value: result.volumeScore },
-                  { label: 'Competition', value: result.competitionScore },
-                  { label: 'Opportunity', value: result.opportunityScore },
+                  { label: t('keywords.searchVolume'), value: result.volumeScore },
+                  { label: t('keywords.competitionScore'), value: result.competitionScore },
+                  { label: t('keywords.opportunityScore'), value: result.opportunityScore },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
@@ -201,12 +203,12 @@ export default function Keywords() {
                   </div>
                 ))}
                 <div style={{ paddingTop: '12px', borderTop: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Max views found: <strong style={{ color: 'var(--text-primary)' }}>{formatNumber(result.maxViews)}</strong>
+                  {t('keywords.maxViewsFound')} <strong style={{ color: 'var(--text-primary)' }}>{formatNumber(result.maxViews)}</strong>
                 </div>
               </div>
 
               <div className="card">
-                <div className="card-title" style={{ marginBottom: '14px' }}>🏆 Suggested Titles</div>
+                <div className="card-title" style={{ marginBottom: '14px' }}>🏆 {t('keywords.suggestedTitles')}</div>
                 {[
                   `${result.keyword} (Complete Guide 2025)`,
                   `I Tested Every ${result.keyword} — Here's the Truth`,
@@ -227,8 +229,8 @@ export default function Keywords() {
         {!result && !loading && !error && (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
             <Search size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Search for a keyword to analyze</div>
-            <div style={{ fontSize: '13px', marginTop: '6px' }}>Type a topic above to see real YouTube data</div>
+            <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('keywords.emptyTitle')}</div>
+            <div style={{ fontSize: '13px', marginTop: '6px' }}>{t('keywords.emptyDesc')}</div>
           </div>
         )}
 

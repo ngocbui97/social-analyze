@@ -1,22 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useTracker } from '../hooks/useTracker';
+import { FileSpreadsheet, Upload, Trash2, RefreshCw, AlertCircle, Wand2, Settings, User, Bot, Send, BarChart2, Search, Filter } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, ScatterChart, Scatter, ZAxis } from 'recharts';
 import * as XLSX from 'xlsx';
 import Topbar from '../components/Topbar';
-import { 
-  Upload, FileSpreadsheet, BarChart2, PieChart as PieChartIcon, 
-  Settings, Wand2, RefreshCw, AlertCircle, MessageSquare, 
-  Send, User, Bot, Trash2, ArrowRight, TrendingUp, Info
-} from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, ScatterChart, Scatter, ZAxis, 
-  PieChart, Pie, Cell, LineChart, Line, Legend
-} from 'recharts';
-import { useTracker } from '../hooks/useTracker';
 import { analyzeExportedData, chatWithExportedData } from '../services/ai';
-
-const COLORS = ['#4f7dff', '#ff3b5c', '#22d3a5', '#f5c542', '#a05bff', '#ff8b4f', '#00b7ff', '#e042d8'];
+import './StudioReports.css';
 
 export default function StudioReports() {
+  const { t } = useTranslation();
   useTracker('Studio Reports');
   
   const [data, setData] = useState([]);
@@ -33,6 +26,11 @@ export default function StudioReports() {
   const [chatInput, setChatInput] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const chatEndRef = useRef(null);
+  
+  // Search, Filter, Sort States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [sortConfig, setSortConfig] = useState({ key: 'views', direction: 'desc' });
 
   // Persistence: Load on mount
   useEffect(() => {
@@ -89,7 +87,7 @@ export default function StudioReports() {
         const rawData = XLSX.utils.sheet_to_json(ws);
         
         if (rawData.length === 0) {
-          throw new Error("Tệp không có dữ liệu!");
+          throw new Error(t('studio.errorNoData'));
         }
 
         // Header mapping helper
@@ -109,7 +107,8 @@ export default function StudioReports() {
           newViewers: findKey(firstRow, ['Người xem mới', 'New viewers']),
           returningViewers: findKey(firstRow, ['Người xem cũ', 'Returning viewers']),
           subscribers: findKey(firstRow, ['Người đăng ký', 'Subscribers', 'Subs']),
-          impressions: findKey(firstRow, ['Lượt hiển thị', 'Impressions'])
+          impressions: findKey(firstRow, ['Lượt hiển thị', 'Impressions']),
+          publishDate: findKey(firstRow, ['Ngày xuất bản', 'Publish date', 'Published', 'Ngày'])
         };
 
         const parsed = rawData
@@ -130,17 +129,18 @@ export default function StudioReports() {
             item.returningViewers = Number(row[keyMap.returningViewers] || 0);
             item.subscribers = Number(row[keyMap.subscribers] || 0);
             item.impressions = Number(row[keyMap.impressions] || 0);
+            item.publishDate = row[keyMap.publishDate] || '';
             return item;
           })
           .sort((a, b) => b.views - a.views);
 
         if (parsed.length === 0) {
-          throw new Error("Không thể nhận diện các cột dữ liệu quan trọng. Vui lòng kiểm tra lại định dạng file.");
+          throw new Error(t('studio.errorHeader'));
         }
 
         setData(parsed);
       } catch (err) {
-        setError(err.message || 'Lỗi đọc file. Vui lòng thử file .xlsx hoặc .csv khác.');
+        setError(err.message || t('studio.errorRead'));
         setData([]);
       } finally {
         setParsing(false);
@@ -148,7 +148,7 @@ export default function StudioReports() {
     };
     
     reader.onerror = () => {
-      setError("Lỗi đọc file từ máy tính!");
+      setError(t('studio.errorLocal'));
       setParsing(false);
     };
 
@@ -160,7 +160,7 @@ export default function StudioReports() {
     
     const apiKey = localStorage.getItem('ai_api_key') || import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-      setError("Vui lòng cấu hình Gemini API Key trong phần Settings trước khi dùng AI Analysis.");
+      setError(t('studio.errorAiConfig'));
       return;
     }
 
@@ -181,9 +181,9 @@ export default function StudioReports() {
       console.error(err);
       let msg = err.message;
       if (msg.includes('503') || msg.toLowerCase().includes('high demand')) {
-        msg = "Hệ thống AI đang quá tải. Đã thử lại nhưng chưa thành công.";
+        msg = t('studio.aiOverloaded');
       }
-      setError("Lỗi AI: " + msg);
+      setError("AI Error: " + msg);
     } finally {
       setAiLoading(false);
     }
@@ -207,11 +207,55 @@ export default function StudioReports() {
       const response = await chatWithExportedData(apiKey, topVidsText, userMsg, chatHistory);
       setChatHistory(prev => [...prev, { role: 'model', content: response }]);
     } catch (err) {
-      setError("Lỗi Chat: " + err.message);
+      setError("Chat Error: " + err.message);
     } finally {
       setAiLoading(false);
     }
   };
+  
+  const handleSort = (key) => {
+    let direction = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const filteredAndSortedData = React.useMemo(() => {
+    let result = [...data];
+
+    // Search
+    if (searchTerm) {
+      result = result.filter(v => 
+        v.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter
+    if (filterType === 'highViews') {
+      result = result.filter(v => v.views > 1000);
+    } else if (filterType === 'highCtr') {
+      result = result.filter(v => v.ctr > 5);
+    } else if (filterType === 'highRetention') {
+      result = result.filter(v => v.retention > 40);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      
+      if (typeof aVal === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      
+      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    return result;
+  }, [data, searchTerm, filterType, sortConfig]);
 
   // Preparation for charts
   const topViewsData = data.slice(0, 5).map(v => ({
@@ -229,8 +273,8 @@ export default function StudioReports() {
   }));
 
   const audienceData = [
-    { name: 'Người xem mới', value: data.reduce((acc, curr) => acc + curr.newViewers, 0) },
-    { name: 'Người xem cũ', value: data.reduce((acc, curr) => acc + curr.returningViewers, 0) }
+    { name: t('studio.new'), value: data.reduce((acc, curr) => acc + curr.newViewers, 0) },
+    { name: t('studio.returning'), value: data.reduce((acc, curr) => acc + curr.returningViewers, 0) }
   ];
 
   const CustomChartTooltip = ({ active, payload }) => {
@@ -252,7 +296,7 @@ export default function StudioReports() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Topbar title="Studio Reports" subtitle="Phân tích báo cáo YouTube Studio (Offline)" />
+      <Topbar title={t('common.studioReports')} subtitle={t('studio.titleSubtitle', 'Analysis of YouTube Studio Reports (Offline)')} />
       
       <div className="page-content">
         
@@ -260,7 +304,7 @@ export default function StudioReports() {
         <div className="card" style={{ marginBottom: '24px' }}>
           <div className="card-header" style={{ marginBottom: '16px' }}>
             <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileSpreadsheet size={18} style={{ color: 'var(--accent-green)' }} /> Upload Báo cáo
+              <FileSpreadsheet size={18} style={{ color: 'var(--accent-green)' }} /> {t('studio.uploadTitle')}
             </span>
           </div>
           
@@ -276,7 +320,7 @@ export default function StudioReports() {
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                 >
                   <Upload size={28} style={{ marginBottom: '12px', color: 'var(--accent-blue)' }} />
-                  <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>Chọn file Excel/CSV mới</span>
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{t('studio.uploadDashed')}</span>
                   <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -290,17 +334,17 @@ export default function StudioReports() {
                   <div style={{ padding: '16px', background: 'rgba(34, 211, 165, 0.1)', borderRadius: '12px', border: '1px solid rgba(34, 211, 165, 0.2)', display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
                     <div style={{ background: 'var(--accent-green)', color: '#000', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✓</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-green)' }}>Đang hiển thị dữ liệu từ</div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-green)' }}>{t('studio.displayingDataFrom')}</div>
                       <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{fileName}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{data.length} hàng dữ liệu</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{data.length} {t('studio.rowsOfData')}</div>
                     </div>
-                    <button onClick={clearData} className="btn btn-ghost" style={{ color: 'var(--accent-red)', padding: '8px' }} title="Xóa dữ liệu">
+                    <button onClick={clearData} className="btn btn-ghost" style={{ color: 'var(--accent-red)', padding: '8px' }} title={t('common.delete')}>
                       <Trash2 size={18} />
                     </button>
                   </div>
                 )}
                 
-                {parsing && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</div>}
+                {parsing && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}><RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> {t('studio.processing')}</div>}
               </div>
 
           {error && (
@@ -316,19 +360,19 @@ export default function StudioReports() {
             {/* Stats Overview */}
             <div className="grid-4" style={{ marginBottom: '24px' }}>
               <div className="card" style={{ padding: '16px' }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>Tổng Lượt xem</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>{t('studio.totalViews')}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-blue)' }}>{data.reduce((acc, v) => acc + v.views, 0).toLocaleString()}</div>
               </div>
               <div className="card" style={{ padding: '16px' }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>CTR Trung bình</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>{t('studio.avgCtr')}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-pink)' }}>{(data.reduce((acc, v) => acc + v.ctr, 0) / data.length).toFixed(2)}%</div>
               </div>
               <div className="card" style={{ padding: '16px' }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>Người xem mới</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>{t('studio.newViewers')}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-green)' }}>{data.reduce((acc, v) => acc + v.newViewers, 0).toLocaleString()}</div>
               </div>
               <div className="card" style={{ padding: '16px' }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>Đăng ký mới</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '4px' }}>{t('studio.subscribers')}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--accent-purple)' }}>{data.reduce((acc, v) => acc + v.subscribers, 0).toLocaleString()}</div>
               </div>
             </div>
@@ -338,9 +382,9 @@ export default function StudioReports() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: chatHistory.length > 0 ? '20px' : 0 }}>
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    <Wand2 size={18} style={{ color: 'var(--accent-purple)' }} /> AI Phân tích & Chat chuyên sâu
+                    <Wand2 size={18} style={{ color: 'var(--accent-purple)' }} /> {t('studio.aiAnalysisTitle')}
                   </h3>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Hỏi AI bất kỳ điều gì về dữ liệu của bạn để tìm ra cơ hội tăng trưởng.</p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t('studio.aiAnalysisDesc')}</p>
                 </div>
                 {chatHistory.length === 0 ? (
                   <button 
@@ -349,10 +393,10 @@ export default function StudioReports() {
                     disabled={aiLoading}
                     style={{ background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-blue))', border: 'none' }}
                   >
-                    {aiLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</> : <><Settings size={14} /> Bắt đầu phân tích</>}
+                    {aiLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> {t('studio.processing')}</> : <><Settings size={14} /> {t('studio.startAnalysis')}</>}
                   </button>
                 ) : (
-                  <button className="btn btn-ghost" onClick={() => setChatHistory([])} style={{ fontSize: '12px' }}><Trash2 size={14} /> Xóa hội thoại</button>
+                  <button className="btn btn-ghost" onClick={() => setChatHistory([])} style={{ fontSize: '12px' }}><Trash2 size={14} /> {t('studio.clearChat')}</button>
                 )}
               </div>
 
@@ -387,7 +431,7 @@ export default function StudioReports() {
                     type="text" 
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Hỏi AI thêm về dữ liệu này... (ví dụ: Video nào hút subs nhất?)"
+                    placeholder={t('studio.chatPlaceholder')}
                     style={{ flex: 1, padding: '12px 16px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   />
                   <button type="submit" className="btn btn-primary" disabled={aiLoading || !chatInput.trim()}>
@@ -401,7 +445,7 @@ export default function StudioReports() {
             <div className="grid-2" style={{ marginBottom: '24px' }}>
               <div className="card">
                 <div className="card-header">
-                  <span className="card-title">Top 5 Video Lượt xem Cao nhất</span>
+                  <span className="card-title">{t('studio.top5Views')}</span>
                 </div>
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={topViewsData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
@@ -409,14 +453,14 @@ export default function StudioReports() {
                     <XAxis type="number" tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis dataKey="name" type="category" tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} width={120} />
                     <Tooltip content={<CustomChartTooltip />} />
-                    <Bar dataKey="views" name="Lượt xem" radius={[0,4,4,0]} fill="#ff3b5c" />
+                    <Bar dataKey="views" name={t('studio.views', 'Views')} radius={[0,4,4,0]} fill="#ff3b5c" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="card">
                 <div className="card-header">
-                  <span className="card-title">Khán giả Mới vs Cũ</span>
+                  <span className="card-title">{t('studio.newVsReturning')}</span>
                 </div>
                 <div style={{ display: 'flex', height: '250px' }}>
                   <ResponsiveContainer width="60%" height="100%">
@@ -433,14 +477,14 @@ export default function StudioReports() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#22d3a5' }} />
                       <div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Mới</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t('studio.new')}</div>
                         <div style={{ fontWeight: 600 }}>{audienceData[0].value.toLocaleString()}</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ width: 12, height: 12, borderRadius: '50%', background: '#4f7dff' }} />
                       <div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Cũ</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t('studio.returning')}</div>
                         <div style={{ fontWeight: 600 }}>{audienceData[1].value.toLocaleString()}</div>
                       </div>
                     </div>
@@ -452,15 +496,15 @@ export default function StudioReports() {
             {/* Charts Row 2 */}
             <div className="card" style={{ marginBottom: '24px' }}>
               <div className="card-header">
-                <span className="card-title">Tương quan Tỷ lệ Click (CTR) & Ở lại xem (Retention)</span>
+                <span className="card-title">{t('studio.ctrRetentionCorrelation')}</span>
               </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Biểu đồ phân tán (Scatter) giúp bạn tìm ra những video hội tụ cả hình thu nhỏ xuất sắc (CTR cao) và chất lượng nội dung tốt (Retention cao).</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>{t('studio.scatterDesc')}</p>
               <ResponsiveContainer width="100%" height={300}>
                 <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                   <XAxis type="number" dataKey="ctr" name="CTR (%)" unit="%" tick={{ fill: '#555568', fontSize: 10 }} />
                   <YAxis type="number" dataKey="retention" name="Retention" unit="%" tick={{ fill: '#555568', fontSize: 10 }} />
-                  <ZAxis type="number" dataKey="views" range={[50, 400]} name="Lượt xem" />
+                  <ZAxis type="number" dataKey="views" range={[50, 400]} name={t('studio.views', 'Views')} />
                   <Tooltip content={<CustomChartTooltip />} cursor={{ strokeDasharray: '3 3' }} />
                   <Scatter name="Videos" data={scatterData} fill="#f5c542" />
                 </ScatterChart>
@@ -468,35 +512,178 @@ export default function StudioReports() {
             </div>
 
             {/* Data Table */}
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Dữ liệu chi tiết</span>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="card-header" style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BarChart2 size={18} style={{ color: 'var(--accent-blue)' }} /> {t('studio.detailedData')}
+                  <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-muted)', marginLeft: '8px' }}>
+                    {t('studio.scrollRight')}
+                  </span>
+                </span>
+                
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {/* Search */}
+                  <div style={{ position: 'relative', minWidth: '200px' }}>
+                    <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input 
+                      type="text" 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder={t('studio.searchPlaceholder')}
+                      style={{ 
+                        padding: '8px 12px 8px 32px', background: 'var(--bg-secondary)', 
+                        border: '1px solid var(--border)', borderRadius: '6px', 
+                        fontSize: '13px', color: 'var(--text-primary)', width: '100%' 
+                      }}
+                    />
+                  </div>
+
+                  {/* Filter */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Filter size={14} style={{ color: 'var(--text-muted)' }} />
+                    <select 
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      style={{ 
+                        padding: '8px 12px', background: 'var(--bg-secondary)', 
+                        border: '1px solid var(--border)', borderRadius: '6px', 
+                        fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer'
+                      }}
+                    >
+                      <option value="all">{t('studio.filterAll')}</option>
+                      <option value="highViews">{t('studio.filterHighViews')}</option>
+                      <option value="highCtr">{t('studio.filterHighCtr')}</option>
+                      <option value="highRetention">{t('studio.filterHighRetention')}</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div style={{ overflowX: 'auto', padding: '12px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-hover)' }}>
-                      <th style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Tiêu đề Video</th>
+
+              <div className="custom-table-container" style={{ 
+                overflowX: 'auto', 
+                overflowY: 'auto',
+                maxHeight: '600px', 
+                position: 'relative',
+                background: 'var(--bg-card)'
+              }}>
+                <table style={{ 
+                  width: '100%', 
+                  borderCollapse: 'separate', 
+                  borderSpacing: 0,
+                  textAlign: 'left', 
+                  minWidth: Math.max(1000, (Object.keys(data[0] || {}).length * 130)) + 'px'
+                }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-card)' }}>
+                    <tr>
+                      <th 
+                        onClick={() => handleSort('title')}
+                        style={{ 
+                          padding: '14px 24px', 
+                          fontSize: '12px', 
+                          color: 'var(--text-primary)', 
+                          fontWeight: 700,
+                          background: 'var(--bg-secondary)',
+                          borderBottom: '2px solid var(--border-hover)',
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 11,
+                          whiteSpace: 'nowrap',
+                          boxShadow: '2px 0 5px rgba(0,0,0,0.1)',
+                          cursor: 'pointer',
+                          userSelect: 'none'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {t('studio.videoTitle')}
+                          {sortConfig.key === 'title' && (sortConfig.direction === 'asc' ? ' ↑' : ' ↓')}
+                        </div>
+                      </th>
                       {Object.keys(data[0] || {}).filter(k => 
-                        !['id', 'title'].includes(k) && typeof data[0][k] === 'number'
-                      ).map(k => (
-                        <th key={k} style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'capitalize' }}>
-                          {k}
-                        </th>
-                      ))}
+                        !['id', 'title'].includes(k) && (typeof data[0][k] === 'number' || k === 'publishDate')
+                      ).map(k => {
+                        let displayKey = k.replace(/_/g, ' ');
+                        if (k === 'views') displayKey = t('studio.totalViews');
+                        if (k === 'watchTime') displayKey = t('studio.watchTimeHours');
+                        if (k === 'ctr') displayKey = t('studio.avgCtr') + ' (CTR)';
+                        if (k === 'retention') displayKey = t('studio.returning') + ' (%)';
+                        if (k === 'newViewers') displayKey = t('studio.newViewers');
+                        if (k === 'returningViewers') displayKey = t('studio.returning');
+                        if (k === 'subscribers') displayKey = t('studio.subscribers');
+                        if (k === 'impressions') displayKey = t('studio.impressions');
+                        if (k === 'publishDate') displayKey = t('studio.publishDate');
+
+                        return (
+                          <th 
+                            key={k} 
+                            onClick={() => handleSort(k)}
+                            style={{ 
+                              padding: '14px 20px', 
+                              fontSize: '12px', 
+                              color: 'var(--text-secondary)', 
+                              fontWeight: 600, 
+                              background: 'var(--bg-secondary)',
+                              borderBottom: '2px solid var(--border-hover)',
+                              whiteSpace: 'nowrap',
+                              minWidth: '100px',
+                              cursor: 'pointer',
+                              userSelect: 'none'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {displayKey}
+                              {sortConfig.key === k && (sortConfig.direction === 'asc' ? ' ↑' : ' ↓')}
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
-                    {data.map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding: '12px', fontSize: '13px', fontWeight: 500 }}>
-                          <div style={{ maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.title}>{row.title}</div>
+                    {filteredAndSortedData.map((row, i) => (
+                      <tr key={i} style={{ transition: 'background 0.2s' }} className="table-row-hover">
+                        <td style={{ 
+                          padding: '14px 24px', 
+                          fontSize: '13px', 
+                          fontWeight: 500,
+                          background: 'var(--bg-card)',
+                          borderBottom: '1px solid var(--border)',
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 5,
+                          boxShadow: '2px 0 5px rgba(0,0,0,0.05)',
+                          maxWidth: '350px'
+                        }}>
+                          <div style={{ 
+                            width: 'fit-content',
+                            maxWidth: '320px', 
+                            whiteSpace: 'nowrap', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis',
+                            color: 'var(--text-primary)'
+                          }} title={row.title}>
+                            {row.title}
+                          </div>
                         </td>
                         {Object.keys(row).filter(k => 
-                          !['id', 'title'].includes(k) && typeof row[k] === 'number'
+                          !['id', 'title'].includes(k) && (typeof row[k] === 'number' || k === 'publishDate')
                         ).map(k => (
-                          <td key={k} style={{ padding: '12px', fontSize: '13px', color: k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? 'inherit' : 'var(--text-secondary)' }}>
-                            {k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? `${row[k].toFixed(1)}%` : row[k].toLocaleString()}
+                          <td key={k} style={{ 
+                            padding: '14px 20px', 
+                            fontSize: '13px', 
+                            color: 'var(--text-secondary)',
+                            borderBottom: '1px solid var(--border)',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {typeof row[k] === 'number' ? (
+                              <span style={{ 
+                                color: k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? 'var(--accent-green)' : 'inherit',
+                                fontWeight: k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? '600' : 'normal'
+                              }}>
+                                {k.toLowerCase().includes('ctr') || k.toLowerCase().includes('retention') ? `${row[k].toFixed(2)}%` : row[k].toLocaleString()}
+                              </span>
+                            ) : (
+                              <span style={{ color: k === 'publishDate' ? 'var(--accent-purple)' : 'inherit' }}>{row[k]}</span>
+                            )}
                           </td>
                         ))}
                       </tr>

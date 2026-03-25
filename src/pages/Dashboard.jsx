@@ -1,5 +1,5 @@
-/* eslint-disable react-hooks/set-state-in-effect, no-unused-vars */
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTracker } from '../hooks/useTracker';
 import { TrendingUp, Eye, Users, ThumbsUp, Play, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
@@ -53,6 +53,7 @@ function Skeleton({ width = '100%', height = '20px', style = {} }) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   useTracker('Dashboard');
   const { user, accessToken } = useAuth();
   const [channel, setChannel] = useState(null);
@@ -108,10 +109,10 @@ export default function Dashboard() {
       })).reverse();
 
   const statCards = channel ? [
-    { label: 'Subscribers (+)', value: overview?.subscribersGained ? `+${formatNumber(Number(overview.subscribersGained))}` : formatNumber(channel.subscribers), icon: Users, color: 'purple' },
-    { label: 'Total Views', value: formatNumber(channel.totalViews), icon: Eye, color: 'blue' },
-    { label: 'Avg View (sec)', value: overview ? Math.round(overview.averageViewDuration || 0) : '—', icon: Play, color: 'yellow' },
-    { label: 'Shares', value: overview ? formatNumber(Number(overview.shares || 0)) : '—', icon: TrendingUp, color: 'green' },
+    { label: t('dashboard.totalSubscribers'), value: overview?.subscribersGained ? `+${formatNumber(Number(overview.subscribersGained))}` : formatNumber(channel.subscribers), icon: Users, color: 'purple' },
+    { label: t('dashboard.totalViews'), value: formatNumber(channel.totalViews), icon: Eye, color: 'blue' },
+    { label: t('dashboard.avgViewDuration'), value: overview ? Math.round(overview.averageViewDuration || 0) : '—', icon: Play, color: 'yellow' },
+    { label: t('dashboard.shares'), value: overview ? formatNumber(Number(overview.shares || 0)) : '—', icon: TrendingUp, color: 'green' },
   ] : [];
 
   const trafficData = trafficSources.map(t => ({
@@ -143,8 +144,8 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page animate-fade-in">
       <Topbar
-        title="Dashboard"
-        subtitle={channel ? `Welcome, ${channel.title} 👋` : 'Loading your channel...'}
+        title={t('common.dashboard')}
+        subtitle={channel ? t('dashboard.welcome', { name: channel.title }) : t('dashboard.loadingChannel')}
       />
       <div className="page-content">
 
@@ -179,7 +180,7 @@ export default function Dashboard() {
                 )}
               </div>
               <button className="btn btn-secondary" onClick={() => setRefreshKey(k => k + 1)} style={{ padding: '8px 14px', fontSize: '12px', alignSelf: 'flex-start', marginTop: '10px' }}>
-                <RefreshCw size={13} /> Refresh
+                <RefreshCw size={13} /> {t('dashboard.refresh')}
               </button>
             </div>
           </div>
@@ -212,10 +213,10 @@ export default function Dashboard() {
           <div className="charts-row">
             <div className="card chart-card chart-large">
               <div className="card-header">
-                <span className="card-title">Views Performance (Last 30 Days)</span>
+                <span className="card-title">{t('dashboard.viewsPerformance')}</span>
                 <div className="chart-legend">
-                  <span className="legend-item"><span style={{ background: '#4f7dff' }} />Views</span>
-                  <span className="legend-item"><span style={{ background: '#ff3b5c' }} />Likes</span>
+                  <span className="legend-item"><span style={{ background: '#4f7dff' }} />{t('dashboard.views')}</span>
+                  <span className="legend-item"><span style={{ background: '#ff3b5c' }} />{t('dashboard.likes')}</span>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={220}>
@@ -234,15 +235,15 @@ export default function Dashboard() {
                   <XAxis dataKey="day" tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="views" name="Views" stroke="#4f7dff" strokeWidth={2} fill="url(#viewsGrad)" />
-                  <Area type="monotone" dataKey="likes" name="Likes" stroke="#ff3b5c" strokeWidth={2} fill="url(#likesGrad)" />
+                  <Area type="monotone" dataKey="views" name={t('dashboard.views')} stroke="#4f7dff" strokeWidth={2} fill="url(#viewsGrad)" />
+                  <Area type="monotone" dataKey="likes" name={t('dashboard.likes')} stroke="#ff3b5c" strokeWidth={2} fill="url(#likesGrad)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
 
             <div className="card chart-card chart-small">
               <div className="card-header">
-                <span className="card-title">Likes Over Time</span>
+                <span className="card-title">{t('dashboard.likesOverTime')}</span>
               </div>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -250,7 +251,7 @@ export default function Dashboard() {
                   <XAxis dataKey="day" tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="likes" name="Likes" radius={[4,4,0,0]} fill="#ff3b5c" />
+                  <Bar dataKey="likes" name={t('dashboard.likes')} radius={[4,4,0,0]} fill="#ff3b5c" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -263,7 +264,7 @@ export default function Dashboard() {
             {trafficData.length > 0 && (
               <div className="card chart-card chart-small">
                 <div className="card-header">
-                  <span className="card-title">Traffic Sources</span>
+                  <span className="card-title">{t('dashboard.trafficSources')}</span>
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -281,7 +282,7 @@ export default function Dashboard() {
             {ageData.length > 0 && (
               <div className="card chart-card chart-large">
                 <div className="card-header">
-                  <span className="card-title">Audience Age Demographics (%)</span>
+                  <span className="card-title">{t('dashboard.audienceDemographics')}</span>
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={ageData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -303,7 +304,7 @@ export default function Dashboard() {
             {geoData.length > 0 && (
               <div className="card chart-card chart-large">
                 <div className="card-header">
-                  <span className="card-title">Top Countries (Views)</span>
+                  <span className="card-title">{t('dashboard.topCountries')}</span>
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={geoData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -311,7 +312,7 @@ export default function Dashboard() {
                     <XAxis type="number" tick={{ fill: '#555568', fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis dataKey="name" type="category" tick={{ fill: '#555568', fontSize: 10, fontWeight: 600 }} axisLine={false} tickLine={false} width={40} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="value" name="Views" radius={[0,4,4,0]} fill="#f5c542" />
+                    <Bar dataKey="value" name={t('dashboard.views')} radius={[0,4,4,0]} fill="#f5c542" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -320,7 +321,7 @@ export default function Dashboard() {
             {deviceData.length > 0 && (
               <div className="card chart-card chart-small">
                 <div className="card-header">
-                  <span className="card-title">Device Types</span>
+                  <span className="card-title">{t('dashboard.deviceTypes')}</span>
                 </div>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -340,8 +341,8 @@ export default function Dashboard() {
         {/* Recent Videos */}
         <div className="card">
           <div className="card-header">
-            <span className="card-title">Recent Video Performance</span>
-            <button className="btn btn-ghost" id="view-all-videos"><Play size={13} /> View all</button>
+            <span className="card-title">{t('dashboard.recentVideoPerformance')}</span>
+            <button className="btn btn-ghost" id="view-all-videos"><Play size={13} /> {t('dashboard.viewAll')}</button>
           </div>
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -358,11 +359,11 @@ export default function Dashboard() {
           ) : (
             <div className="video-table">
               <div className="video-table-head">
-                <div>Video</div>
-                <div>Views</div>
-                <div>Likes</div>
-                <div>Comments</div>
-                <div>SEO Score</div>
+                <div>{t('dashboard.video')}</div>
+                <div>{t('dashboard.views')}</div>
+                <div>{t('dashboard.likes')}</div>
+                <div>{t('dashboard.comments')}</div>
+                <div>{t('dashboard.seoScore')}</div>
               </div>
               {videos.map(v => {
                 const { overall } = scoreVideo({ title: v.title, description: v.description, tags: v.tags });

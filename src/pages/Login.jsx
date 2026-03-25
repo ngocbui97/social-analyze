@@ -1,18 +1,25 @@
 import { useAuth } from '../context/AuthContext';
 import { Zap, Youtube, Shield, BarChart2, Search, TrendingUp, AlertTriangle } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import './Login.css';
 
-const features = [
-  { icon: BarChart2, label: 'Real Channel Analytics', desc: 'Live stats from your YouTube channel' },
-  { icon: Search, label: 'Keyword Research', desc: 'Find high-traffic, low-competition terms' },
-  { icon: TrendingUp, label: 'Competitor Tracking', desc: 'Benchmark against top creators' },
-];
-
 export default function Login() {
+  const { t } = useTranslation();
   const { login, loading, isConfigured } = useAuth();
+
+  const features = [
+    { icon: BarChart2, label: t('login.feature1Label'), desc: t('login.feature1Desc') },
+    { icon: Search, label: t('login.feature2Label'), desc: t('login.feature2Desc') },
+    { icon: TrendingUp, label: t('login.feature3Label'), desc: t('login.feature3Desc') },
+  ];
 
   return (
     <div className="login-page">
+      {/* Language Switcher for Login Page */}
+      <div style={{ position: 'absolute', top: '24px', right: '24px', zIndex: 100 }}>
+        <LanguageSwitcher />
+      </div>
       {/* Background orbs */}
       <div className="login-orb login-orb--1" />
       <div className="login-orb login-orb--2" />
@@ -27,10 +34,12 @@ export default function Login() {
           <span className="login-logo-text">Social<span>IQ</span></span>
         </div>
 
-        <h1 className="login-title">Grow Your Channel Faster</h1>
+        <h1 className="login-title">{t('login.title')}</h1>
         <p className="login-subtitle">
-          Connect your YouTube account to unlock real analytics,<br />
-          keyword insights, and competitor tracking.
+          <Trans i18nKey="login.subtitle">
+            Connect your YouTube account to unlock real analytics,<br />
+            keyword insights, and competitor tracking.
+          </Trans>
         </p>
 
         {/* Feature list */}
@@ -53,8 +62,10 @@ export default function Login() {
           <div className="login-warning">
             <AlertTriangle size={14} />
             <span>
-              <strong>VITE_GOOGLE_CLIENT_ID</strong> is not set in <code>.env.local</code>.
-              Please add your Google OAuth Client ID to enable login.
+              <Trans i18nKey="login.noClientId">
+                <strong>VITE_GOOGLE_CLIENT_ID</strong> is not set in <code>.env.local</code>.
+                Please add your Google OAuth Client ID to enable login.
+              </Trans>
             </span>
           </div>
         )}
@@ -66,25 +77,27 @@ export default function Login() {
           disabled={loading || !isConfigured}
         >
           <Youtube size={18} fill="#ff3b5c" />
-          {loading ? 'Loading...' : 'Sign in with Google'}
+          {loading ? t('login.loading') : t('common.login')}
         </button>
 
         {/* Privacy note */}
         <div className="login-privacy">
           <Shield size={12} />
-          We only request <strong>read-only</strong> access. We never post to your channel.
+          <Trans i18nKey="login.privacyNote">
+            We only request <strong>read-only</strong> access. We never post to your channel.
+          </Trans>
         </div>
 
         {/* Scope list */}
         <div className="login-scopes">
-          <div className="scope-item">✓ View your YouTube account</div>
-          <div className="scope-item">✓ Read channel statistics</div>
-          <div className="scope-item">✓ Search YouTube content</div>
+          <div className="scope-item">✓ {t('login.scope1')}</div>
+          <div className="scope-item">✓ {t('login.scope2')}</div>
+          <div className="scope-item">✓ {t('login.scope3')}</div>
         </div>
 
         <div style={{ marginTop: '24px', display: 'flex', gap: '16px', justifyContent: 'center', fontSize: '11px', color: 'var(--text-secondary)' }}>
-          <a href="/privacy" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}>Privacy Policy</a>
-          <a href="/terms" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}>Terms of Service</a>
+          <a href="/privacy" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}>{t('login.privacyPolicy')}</a>
+          <a href="/terms" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => e.target.style.textDecoration = 'underline'} onMouseLeave={e => e.target.style.textDecoration = 'none'}>{t('login.termsOfService')}</a>
         </div>
       </div>
     </div>

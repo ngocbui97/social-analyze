@@ -4,18 +4,21 @@ import Topbar from '../components/Topbar';
 import { useAuth } from '../context/AuthContext';
 import { getTrendingVideos, formatNumber } from '../services/youtube';
 import { useTracker } from '../hooks/useTracker';
+import { useTranslation } from 'react-i18next';
 import './Trending.css';
 
-const REGIONS = [
-  { code: 'US', label: 'United States' },
-  { code: 'VN', label: 'Vietnam' },
-  { code: 'GB', label: 'United Kingdom' },
-  { code: 'JP', label: 'Japan' },
-  { code: 'IN', label: 'India' },
-];
-
 export default function Trending() {
+  const { t } = useTranslation();
   useTracker('Trending Topics');
+
+  const REGIONS = [
+    { code: 'US', label: t('regions.US') },
+    { code: 'VN', label: t('regions.VN') },
+    { code: 'GB', label: t('regions.GB') },
+    { code: 'JP', label: t('regions.JP') },
+    { code: 'IN', label: t('regions.IN') },
+  ];
+
   const { accessToken } = useAuth();
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,16 +44,16 @@ export default function Trending() {
 
   return (
     <div className="trending-page animate-fade-in">
-      <Topbar title="Trending Topics" subtitle="What's hot on YouTube right now — live data" />
+      <Topbar title={t('trending.title')} subtitle={t('trending.subtitle')} />
       <div className="page-content">
 
         {/* Header Stats */}
         <div className="trending-stats" style={{ marginBottom: '20px' }}>
           {[
-            { icon: Flame, label: 'Trending Videos', value: videos.length.toString(), color: 'red' },
-            { icon: Eye, label: 'Avg Views', value: videos.length ? formatNumber(Math.round(videos.reduce((a, v) => a + v.views, 0) / videos.length)) : '—', color: 'green' },
-            { icon: Globe, label: 'Region', value: region, color: 'blue' },
-            { icon: Zap, label: 'Live Data', value: '✓', color: 'yellow' },
+            { icon: Flame, label: t('trending.trendingVideos'), value: videos.length.toString(), color: 'red' },
+            { icon: Eye, label: t('trending.avgViews'), value: videos.length ? formatNumber(Math.round(videos.reduce((a, v) => a + v.views, 0) / videos.length)) : '—', color: 'green' },
+            { icon: Globe, label: t('trending.region'), value: region, color: 'blue' },
+            { icon: Zap, label: t('trending.liveData'), value: '✓', color: 'yellow' },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className={`trending-stat trending-stat--${color}`}>
               <Icon size={20} />
@@ -73,7 +76,7 @@ export default function Trending() {
             </button>
           ))}
           <div className="cat-updated">
-            <Clock size={11} /> Live from YouTube
+            <Clock size={11} /> {t('trending.liveFromYoutube')}
           </div>
         </div>
 
@@ -86,7 +89,7 @@ export default function Trending() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
             <Loader size={36} style={{ animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-            <div style={{ fontWeight: 600 }}>Loading trending videos from YouTube...</div>
+            <div style={{ fontWeight: 600 }}>{t('trending.loadingTrending')}</div>
           </div>
         ) : (
           <div className="card">
@@ -99,7 +102,7 @@ export default function Trending() {
                 <div className="trending-info">
                   <div className="trending-title">
                     {v.title}
-                    {i < 3 && <span className="badge badge-red" style={{ marginLeft: '8px', fontSize: '9px' }}>VIRAL</span>}
+                    {i < 3 && <span className="badge badge-red" style={{ marginLeft: '8px', fontSize: '9px' }}>{t('trending.viral')}</span>}
                   </div>
                   <div className="trending-cat" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
                     {v.channel}
@@ -109,7 +112,7 @@ export default function Trending() {
                   <Eye size={12} /> {formatNumber(v.views)}
                 </div>
                 <div className="trending-growth" style={{ color: 'var(--accent-green)' }}>
-                  <TrendingUp size={12} /> {formatNumber(v.likes)} likes
+                  <TrendingUp size={12} /> {t('trending.likes', { count: formatNumber(v.likes) })}
                 </div>
                 <a
                   href={`https://youtube.com/watch?v=${v.id}`}
@@ -119,7 +122,7 @@ export default function Trending() {
                   id={`watch-${i + 1}`}
                   style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
-                  Watch <ExternalLink size={11} />
+                  {t('trending.watch')} <ExternalLink size={11} />
                 </a>
               </div>
             ))}

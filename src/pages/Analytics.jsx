@@ -5,34 +5,36 @@ import { ArrowUp, Clock, Users, Globe, Video, Eye, Loader } from 'lucide-react';
 import Topbar from '../components/Topbar';
 import { useAuth } from '../context/AuthContext';
 import { getChannelStats, getRecentVideos, formatNumber } from '../services/youtube';
-
-const trafficSources = [
-  { name: 'YouTube Search', value: 38, color: '#4f7dff' },
-  { name: 'Suggested Videos', value: 29, color: '#9b59f5' },
-  { name: 'External', value: 16, color: '#22d3a5' },
-  { name: 'Browse Features', value: 12, color: '#f5c542' },
-  { name: 'Other', value: 5, color: '#ff7d3b' },
-];
-
-const demographics = [
-  { age: '18-24', percent: 28 }, { age: '25-34', percent: 41 }, { age: '35-44', percent: 18 },
-  { age: '45-54', percent: 9 }, { age: '55+', percent: 4 },
-];
-
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-hover)', padding: '10px 14px', borderRadius: '10px', fontSize: '12px' }}>
-        <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
-        <strong style={{ color: '#4f7dff' }}>{formatNumber(payload[0].value)} views</strong>
-      </div>
-    );
-  }
-  return null;
-};
+import { useTranslation } from 'react-i18next';
 
 export default function Analytics() {
+  const { t } = useTranslation();
   useTracker('Channel Analytics');
+
+  const trafficSources = [
+    { name: t('analytics.search'), value: 38, color: '#4f7dff' },
+    { name: t('analytics.suggested'), value: 29, color: '#9b59f5' },
+    { name: t('analytics.external'), value: 16, color: '#22d3a5' },
+    { name: t('analytics.browse'), value: 12, color: '#f5c542' },
+    { name: t('analytics.other'), value: 5, color: '#ff7d3b' },
+  ];
+
+  const demographics = [
+    { age: '18-24', percent: 28 }, { age: '25-34', percent: 41 }, { age: '35-44', percent: 18 },
+    { age: '45-54', percent: 9 }, { age: '55+', percent: 4 },
+  ];
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-hover)', padding: '10px 14px', borderRadius: '10px', fontSize: '12px' }}>
+          <div style={{ color: 'var(--text-muted)', marginBottom: '4px' }}>{label}</div>
+          <strong style={{ color: '#4f7dff' }}>{t('analytics.viewsTooltip', { count: formatNumber(payload[0].value) })}</strong>
+        </div>
+      );
+    }
+    return null;
+  };
   const { accessToken } = useAuth();
   const [channel, setChannel] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -60,7 +62,7 @@ export default function Analytics() {
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <Topbar title="Channel Analytics" subtitle="Fetching real performance data..." />
+        <Topbar title={t('analytics.title')} subtitle={t('analytics.loadingSubtitle')} />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Loader size={32} style={{ animation: 'spin 1s linear infinite', color: 'var(--accent-red)' }} />
         </div>
@@ -70,16 +72,16 @@ export default function Analytics() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column' }}>
-      <Topbar title="Channel Analytics" subtitle={`In-depth performance for ${channel?.title || 'your channel'}`} />
+      <Topbar title={t('analytics.title')} subtitle={t('analytics.subtitle', { channel: channel?.title || 'your channel' })} />
       <div className="page-content">
 
         {/* Key Metrics */}
         <div className="grid-4" style={{ marginBottom: '20px' }}>
           {[
-            { label: 'Subscribers', value: formatNumber(channel?.subscribers || 0), change: '+New', icon: Users, color: '#4f7dff' },
-            { label: 'Total Views', value: formatNumber(channel?.totalViews || 0), change: '+Live', icon: Eye, color: '#9b59f5' },
-            { label: 'Videos', value: channel?.videoCount || 0, change: '✓', icon: Video, color: '#22d3a5' },
-            { label: 'Engagement', value: 'Live', change: '—', icon: ArrowUp, color: '#f5c542' },
+            { label: t('analytics.subscribers'), value: formatNumber(channel?.subscribers || 0), change: t('analytics.new'), icon: Users, color: '#4f7dff' },
+            { label: t('analytics.totalViews'), value: formatNumber(channel?.totalViews || 0), change: t('analytics.live'), icon: Eye, color: '#9b59f5' },
+            { label: t('analytics.videos'), value: channel?.videoCount || 0, change: '✓', icon: Video, color: '#22d3a5' },
+            { label: t('analytics.engagement'), value: t('analytics.live'), change: '—', icon: ArrowUp, color: '#f5c542' },
           ].map(({ label, value, change, icon: Icon, color }) => (
             <div key={label} className="card" style={{ borderTop: `2px solid ${color}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
@@ -97,7 +99,7 @@ export default function Analytics() {
         <div className="grid-2" style={{ marginBottom: '20px' }}>
           {/* Recent Video Views Chart */}
           <div className="card">
-            <div className="card-title" style={{ marginBottom: '20px' }}>Views per Recent Video</div>
+            <div className="card-title" style={{ marginBottom: '20px' }}>{t('analytics.viewsPerVideo')}</div>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={viewData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -111,7 +113,7 @@ export default function Analytics() {
 
           {/* Traffic Sources (Industry Average) */}
           <div className="card">
-            <div className="card-title" style={{ marginBottom: '20px' }}>Estimated Traffic Sources</div>
+            <div className="card-title" style={{ marginBottom: '20px' }}>{t('analytics.trafficSources')}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <ResponsiveContainer width={160} height={160}>
                 <PieChart>
@@ -137,7 +139,7 @@ export default function Analytics() {
 
         {/* Demographics (Estimated) */}
         <div className="card">
-          <div className="card-title" style={{ marginBottom: '20px' }}>Audience Demographics (Age - Estimated)</div>
+          <div className="card-title" style={{ marginBottom: '20px' }}>{t('analytics.audienceDemographics')}</div>
           {demographics.map(({ age, percent }) => (
             <div key={age} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
               <div style={{ width: '44px', fontSize: '12px', color: 'var(--text-secondary)', flexShrink: 0 }}>{age}</div>

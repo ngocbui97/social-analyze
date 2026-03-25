@@ -1,38 +1,45 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function TermsOfService() {
+  const { t } = useTranslation();
   return (
-    <div style={{ padding: '60px 20px', maxWidth: '800px', margin: '0 auto', color: 'var(--text-primary)', lineHeight: '1.6' }}>
-      <h1>Terms of Service</h1>
-      <p>Last Updated: March 24, 2026</p>
+    <div style={{ padding: '60px 20px', maxWidth: '800px', margin: '0 auto', color: 'var(--text-primary)', lineHeight: '1.6', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: '24px', right: '20px' }}>
+        <LanguageSwitcher />
+      </div>
+
+      <h1>{t('terms.title')}</h1>
+      <p>{t('terms.lastUpdated')}</p>
 
       <section>
-        <h2>1. Acceptance of Terms</h2>
-        <p>By accessing SocialIQ Analyze, you agree to be bound by these Terms of Service and all applicable laws and regulations.</p>
+        <h2>{t('terms.acceptance')}</h2>
+        <p>{t('terms.acceptanceDesc')}</p>
       </section>
 
       <section>
-        <h2>2. Use License</h2>
-        <p>Permission is granted to use SocialIQ Analyze for personal or commercial YouTube channel management. You may not attempt to decompile or reverse engineer any software contained on the website.</p>
+        <h2>{t('terms.license')}</h2>
+        <p>{t('terms.licenseDesc')}</p>
       </section>
 
       <section>
-        <h2>3. Disclaimer</h2>
-        <p>The materials on SocialIQ Analyze are provided on an 'as is' basis. We make no warranties, expressed or implied, and hereby disclaim and negate all other warranties including, without limitation, implied warranties or conditions of merchantability.</p>
+        <h2>{t('terms.disclaimer')}</h2>
+        <p>{t('terms.disclaimerDesc')}</p>
       </section>
 
       <section>
-        <h2>4. Limitations</h2>
-        <p>In no event shall SocialIQ Analyze or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit) arising out of the use or inability to use the tools.</p>
+        <h2>{t('terms.limitations')}</h2>
+        <p>{t('terms.limitationsDesc')}</p>
       </section>
 
       <section>
-        <h2>5. Governing Law</h2>
-        <p>These terms and conditions are governed by and construed in accordance with the laws of your jurisdiction.</p>
+        <h2>{t('terms.law')}</h2>
+        <p>{t('terms.lawDesc')}</p>
       </section>
 
       <div style={{ marginTop: '40px', padding: '20px', borderTop: '1px solid var(--border)' }}>
-        <a href="/login" style={{ color: 'var(--accent-red)', textDecoration: 'none' }}>← Back to Login</a>
+        <a href="/login" style={{ color: 'var(--accent-red)', textDecoration: 'none' }}>← {t('privacy.back')}</a>
       </div>
     </div>
   );

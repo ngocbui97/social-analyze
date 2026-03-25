@@ -4,8 +4,10 @@ import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, Cartesia
 import { useAuth } from '../context/AuthContext';
 import Topbar from '../components/Topbar';
 import { getFeatureLogs, getUserCount, getAllUsers } from '../services/supabase';
+import { useTranslation } from 'react-i18next';
 
 export default function Admin() {
+  const { t } = useTranslation();
   const { isRoot } = useAuth();
   const [logs, setLogs] = useState([]);
   const [userCount, setUserCount] = useState(0);
@@ -116,9 +118,9 @@ export default function Admin() {
     return (
       <div className="animate-fade-in" style={{ padding: '80px 40px', textAlign: 'center' }}>
         <ShieldAlert size={64} style={{ color: 'var(--accent-red)', margin: '0 auto 16px' }} />
-        <h2>Access Denied</h2>
+        <h2>{t('admin.accessDenied')}</h2>
         <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>
-          You do not have root privileges to view this page.
+          {t('admin.noPrivileges')}
         </p>
       </div>
     );
@@ -126,7 +128,7 @@ export default function Admin() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Topbar title="Admin Dashboard" subtitle="Root Access - System Statistics" />
+      <Topbar title={t('admin.title')} subtitle={t('admin.subtitle')} />
       <div className="page-content">
         <div style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '40px' }}>
         
@@ -140,10 +142,10 @@ export default function Admin() {
             border: `1px solid ${source === 'supabase' ? 'rgba(34,211,165,0.2)' : 'rgba(245,197,66,0.2)'}`,
           }}>
             <Database size={12} />
-            {source === 'supabase' ? 'Supabase (Live)' : 'localStorage (Fallback)'}
+            {source === 'supabase' ? t('admin.supabaseLive') : t('admin.localFallback')}
           </span>
           <button className="btn-ghost" onClick={fetchData} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-            <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> Refresh
+            <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> {t('admin.refresh')}
           </button>
         </div>
 
@@ -154,7 +156,7 @@ export default function Admin() {
             </div>
             <div>
               <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{userCount}</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Unique Users</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t('admin.uniqueUsers')}</div>
             </div>
           </div>
           
@@ -164,7 +166,7 @@ export default function Admin() {
             </div>
             <div>
               <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{logs.length}</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Total Interactions</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t('admin.totalInteractions')}</div>
             </div>
           </div>
         </div>
@@ -176,7 +178,7 @@ export default function Admin() {
           <div className="card">
             <div className="card-header" style={{ marginBottom: '20px' }}>
               <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <TrendingUp size={18} style={{ color: 'var(--accent-purple)' }} /> Daily Activity (14 Days)
+                <TrendingUp size={18} style={{ color: 'var(--accent-purple)' }} /> {t('admin.dailyActivity')}
               </span>
             </div>
             {dailyActivity.some(d => d.count > 0) ? (
@@ -192,12 +194,12 @@ export default function Admin() {
                   <XAxis dataKey="displayDate" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} tickLine={false} dy={8} />
                   <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} dx={-8} />
                   <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }} itemStyle={{ color: 'var(--text-primary)' }} />
-                  <Area type="monotone" dataKey="count" name="Interactions" stroke="var(--accent-purple)" fillOpacity={1} fill="url(#colorCount)" strokeWidth={3} activeDot={{ r: 6, fill: 'var(--accent-purple)', stroke: 'var(--bg-card)', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="count" name={t('admin.tableInteractions')} stroke="var(--accent-purple)" fillOpacity={1} fill="url(#colorCount)" strokeWidth={3} activeDot={{ r: 6, fill: 'var(--accent-purple)', stroke: 'var(--bg-card)', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                No activity recorded in the last 14 days.
+                {t('admin.noActivity')}
               </div>
             )}
           </div>
@@ -206,7 +208,7 @@ export default function Admin() {
           <div className="card">
             <div className="card-header" style={{ marginBottom: '20px' }}>
               <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BarChart2 size={18} style={{ color: 'var(--accent-blue)' }} /> Top Used Features
+                <BarChart2 size={18} style={{ color: 'var(--accent-blue)' }} /> {t('admin.topFeatures')}
               </span>
             </div>
             {featureUsage.length > 0 ? (
@@ -216,12 +218,12 @@ export default function Admin() {
                   <XAxis type="number" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <YAxis dataKey="name" type="category" tick={{ fill: 'var(--text-primary)', fontSize: 12, fontWeight: 500 }} axisLine={{ stroke: 'rgba(255,255,255,0.05)' }} tickLine={false} width={100} />
                   <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '10px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }} itemStyle={{ color: 'var(--text-primary)' }} />
-                  <Bar dataKey="count" name="Interactions" fill="var(--accent-blue)" radius={[0, 4, 4, 0]} barSize={24} />
+                  <Bar dataKey="count" name={t('admin.tableInteractions')} fill="var(--accent-blue)" radius={[0, 4, 4, 0]} barSize={24} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
-                No features used yet.
+                {t('admin.noFeatures')}
               </div>
             )}
           </div>
@@ -233,17 +235,17 @@ export default function Admin() {
           <div className="card">
             <div className="card-header" style={{ marginBottom: '16px' }}>
               <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={18} style={{ color: 'var(--accent-green)' }} /> User Activity Leaderboard
+                <Users size={18} style={{ color: 'var(--accent-green)' }} /> {t('admin.userLeaderboard')}
               </span>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ textAlign: 'left', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>User</th>
-                    <th style={{ textAlign: 'left', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Channel</th>
-                    <th style={{ textAlign: 'center', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Interactions</th>
-                    <th style={{ textAlign: 'right', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Last Active</th>
+                    <th style={{ textAlign: 'left', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('admin.tableUser')}</th>
+                    <th style={{ textAlign: 'left', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('admin.tableChannel')}</th>
+                    <th style={{ textAlign: 'center', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('admin.tableInteractions')}</th>
+                    <th style={{ textAlign: 'right', padding: '16px 12px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('admin.tableLastActive')}</th>
                   </tr>
                 </thead>
                 <tbody>

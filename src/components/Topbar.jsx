@@ -3,9 +3,12 @@ import { Search, Bell, Moon, Sun, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import LanguageSwitcher from './LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
 import './Topbar.css';
 
 export default function Topbar({ title, subtitle }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [search, setSearch] = useState('');
@@ -18,7 +21,7 @@ export default function Topbar({ title, subtitle }) {
     }
   };
 
-  const displayName = user?.channelTitle || user?.name || 'Guest User';
+  const displayName = user?.channelTitle || user?.name || t('common.guestUser');
   const avatarSrc = user?.picture || 'https://i.pravatar.cc/32?u=guest';
 
   return (
@@ -32,25 +35,27 @@ export default function Topbar({ title, subtitle }) {
           <Search size={14} />
           <input
             type="text"
-            placeholder="Search for keywords..."
+            placeholder={t('common.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleSearch}
           />
           <span className="search-kbd">⌘K</span>
         </div>
-        <button className="icon-btn" id="notifications-btn" title="Notifications">
+        <LanguageSwitcher />
+
+        <button className="icon-btn" id="notifications-btn" title={t('common.notifications')}>
           <Bell size={17} />
           <span className="notif-dot" />
         </button>
-        <button className="icon-btn" id="theme-btn" onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+        <button className="icon-btn" id="theme-btn" onClick={toggleTheme} title={`${t('common.switchTo')} ${theme === 'dark' ? t('settings.lightMode') : t('settings.darkMode')} ${t('common.mode')}`}>
           {theme === 'dark' ? <Moon size={17} /> : <Sun size={17} />}
         </button>
         <div className="user-menu" id="user-menu">
           <img src={avatarSrc} alt="User" className="user-avatar" />
           <div className="user-info">
             <div className="user-name">{displayName}</div>
-            <div className="user-plan">{user ? 'Pro Plan' : 'Free Trial'}</div>
+            <div className="user-plan">{user ? t('common.proPlan') : t('common.freeTrial')}</div>
           </div>
           <ChevronDown size={13} />
         </div>

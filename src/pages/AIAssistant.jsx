@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useTracker } from '../hooks/useTracker';
 import { Bot, Send, Sparkles, Wand2, History, AlertCircle, Loader } from 'lucide-react';
 import Topbar from '../components/Topbar';
@@ -9,6 +10,7 @@ import { saveAIMessage, loadAIConversation, clearAIConversation } from '../servi
 import './AIAssistant.css';
 
 export default function AIAssistant() {
+  const { t } = useTranslation();
   useTracker('AI Assistant');
   const { accessToken } = useAuth();
   const [provider, setProvider] = useState(() => localStorage.getItem('ai_provider') || 'default');
@@ -114,7 +116,7 @@ export default function AIAssistant() {
 
   return (
     <div className="ai-page animate-fade-in">
-      <Topbar title="AI Growth Assistant" subtitle="Your personal YouTube strategist" />
+      <Topbar title={t('common.aiAssistant')} subtitle={t('ai.subtitle')} />
       
       <div className="page-content ai-container">
         <div className="ai-chat-layout">

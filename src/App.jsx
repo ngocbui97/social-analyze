@@ -14,6 +14,12 @@ import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
 import StudioReports from './pages/StudioReports';
+import ContentPlanner from './pages/ContentPlanner';
+import CommentsAnalyzer from './pages/CommentsAnalyzer';
+import ShortsEngine from './pages/ShortsEngine';
+import CRM from './pages/CRM';
+import Monetization from './pages/Monetization';
+import Pricing from './pages/Pricing';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import './index.css';
@@ -63,6 +69,12 @@ function AppLayout() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/help" element={<Help />} />
           <Route path="/studio-reports" element={<StudioReports />} />
+          <Route path="/content-planner" element={<ContentPlanner />} />
+          <Route path="/comments" element={<CommentsAnalyzer />} />
+          <Route path="/shorts-engine" element={<ShortsEngine />} />
+          <Route path="/crm" element={<CRM />} />
+          <Route path="/monetization" element={<Monetization />} />
+          <Route path="/pricing" element={<Pricing />} />
         </Routes>
       </div>
     </div>

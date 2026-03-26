@@ -45,8 +45,22 @@ export default async function handler(req, res) {
         } else {
           // Single generation
           const prompt = systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage;
-          const result = await model.generateContent(prompt);
-          return res.status(200).json({ text: result.response.text() });
+          
+          if (req.body.imageData) {
+            const result = await model.generateContent([
+              prompt,
+              {
+                inlineData: {
+                  data: req.body.imageData.base64,
+                  mimeType: req.body.imageData.mimeType
+                }
+              }
+            ]);
+            return res.status(200).json({ text: result.response.text() });
+          } else {
+            const result = await model.generateContent(prompt);
+            return res.status(200).json({ text: result.response.text() });
+          }
         }
       } catch (err) {
         lastError = err;

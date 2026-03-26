@@ -1,8 +1,8 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Search, Video, TrendingUp, Users,
-  BarChart2, Settings, HelpCircle, Zap, Bell, ChevronDown, LogOut, Bot, Shield, FileSpreadsheet
+  BarChart2, Settings, HelpCircle, Zap, Bell, ChevronDown, LogOut, Bot, Shield, FileSpreadsheet, Edit3, DollarSign, MessageSquare, Scissors, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Sidebar.css';
@@ -17,9 +17,14 @@ export default function Sidebar() {
     { icon: Video, label: t('common.videoAnalysis'), path: '/video-analysis' },
     { icon: TrendingUp, label: t('common.trending'), path: '/trending' },
     { icon: Bot, label: t('common.aiAssistant'), path: '/ai-assistant' },
+    { icon: Edit3, label: t('common.contentPlanner', 'Content Planner'), path: '/content-planner' },
+    { icon: MessageSquare, label: t('common.comments', 'Comments AI'), path: '/comments' },
+    { icon: Scissors, label: t('common.shortsEngine', 'Shorts Engine'), path: '/shorts-engine' },
+    { icon: Briefcase, label: t('common.crm', 'Sponsor CRM'), path: '/crm' },
     { icon: Users, label: t('common.competitors'), path: '/competitors' },
     { icon: BarChart2, label: t('common.analytics'), path: '/analytics' },
     { icon: FileSpreadsheet, label: t('common.studioReports'), path: '/studio-reports' },
+    { icon: DollarSign, label: t('common.monetization', 'Monetization'), path: '/monetization' },
   ];
 
   const bottomItems = [
@@ -112,13 +117,13 @@ export default function Sidebar() {
           <span>{t('common.logout')}</span>
         </button>
 
-        <div className="upgrade-card">
+        <Link to="/pricing" className="upgrade-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'row', alignItems: 'center', color: 'inherit' }}>
           <div className="upgrade-icon"><Zap size={14} fill="currentColor" /></div>
           <div>
             <div className="upgrade-title">{t('common.goPro')}</div>
             <div className="upgrade-sub">{t('common.unlockFeatures')}</div>
           </div>
-        </div>
+        </Link>
       </div>
     </aside>
   );

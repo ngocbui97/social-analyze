@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useTracker } from '../hooks/useTracker';
-import { Link, Tag, FileText, BarChart2, CheckCircle, AlertCircle, XCircle, Lightbulb, Copy, Loader, ExternalLink } from 'lucide-react';
+import { Link, Tag, FileText, BarChart2, CheckCircle, AlertCircle, XCircle, Lightbulb, Copy, Loader, ExternalLink, Image as ImageIcon, Upload } from 'lucide-react';
 import Topbar from '../components/Topbar';
 import { useAuth } from '../context/AuthContext';
 import { getVideoDetails, parseVideoId, scoreVideo } from '../services/youtube';
+import { analyzeThumbnail } from '../services/ai';
 import { useTranslation } from 'react-i18next';
 import './VideoAnalysis.css';
 
@@ -51,6 +52,48 @@ export default function VideoAnalysis() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('title');
 
+  // Thumbnail Analysis State
+  const [analysisMode, setAnalysisMode] = useState('url'); // 'url' | 'thumbnail'
+  const [thumbImage, setThumbImage] = useState(null);
+  const [thumbAnalysis, setThumbAnalysis] = useState(null);
+  const [thumbLoading, setThumbLoading] = useState(false);
+  const [thumbError, setThumbError] = useState(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = event.target.result;
+      setThumbImage({
+        base64: base64Data.split(',')[1],
+        mimeType: file.type,
+        previewUrl: base64Data
+      });
+      setThumbAnalysis(null);
+      setThumbError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyzeThumbnail = async () => {
+    if (!thumbImage) {
+      setThumbError(t('videoAnalysis.noImageError', 'Vui lòng tải lên một hình ảnh trước.'));
+      return;
+    }
+    setThumbLoading(true);
+    setThumbError(null);
+    try {
+      const apiKey = localStorage.getItem('ai_api_key');
+      const result = await analyzeThumbnail(apiKey, thumbImage);
+      setThumbAnalysis(result);
+    } catch (err) {
+      setThumbError(err.message);
+    } finally {
+      setThumbLoading(false);
+    }
+  };
+
   const handleAnalyze = async () => {
     const videoId = parseVideoId(url.trim());
     if (!videoId) {
@@ -89,8 +132,28 @@ export default function VideoAnalysis() {
       <Topbar title={t('videoAnalysis.title')} subtitle={t('videoAnalysis.subtitle')} />
       <div className="page-content">
 
-        {/* URL Input */}
-        <div className="va-url-input card">
+        {/* Mode Switcher */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+          <button 
+            className={`btn ${analysisMode === 'url' ? 'btn-primary' : 'btn-secondary'}`} 
+            onClick={() => setAnalysisMode('url')}
+            style={{ flex: 1, boxShadow: analysisMode === 'url' ? '0 0 15px rgba(255, 59, 92, 0.3)' : 'none' }}
+          >
+            <Link size={16} /> Phân tích Video (URL)
+          </button>
+          <button 
+            className={`btn ${analysisMode === 'thumbnail' ? 'btn-primary' : 'btn-secondary'}`} 
+            onClick={() => setAnalysisMode('thumbnail')}
+            style={{ flex: 1, boxShadow: analysisMode === 'thumbnail' ? '0 0 15px rgba(255, 59, 92, 0.3)' : 'none' }}
+          >
+            <ImageIcon size={16} /> Phân tích Ảnh thu nhỏ (AI Vision)
+          </button>
+        </div>
+
+        {/* URL Mode UI */}
+        {analysisMode === 'url' && (
+          <>
+            <div className="va-url-input card">
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Link size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <input
@@ -244,12 +307,90 @@ export default function VideoAnalysis() {
           </div>
         )}
 
-        {/* Empty state */}
-        {!video && !loading && !error && (
+        {/* Empty state  (url mode) */}
+        {analysisMode === 'url' && !video && !loading && !error && (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
             <FileText size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
             <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>{t('videoAnalysis.emptyTitle')}</div>
             <div style={{ fontSize: '13px', marginTop: '6px' }}>{t('videoAnalysis.emptyDesc')}</div>
+          </div>
+        )}
+        </>
+        )}
+
+        {/* THUMBNAIL MODE UI */}
+        {analysisMode === 'thumbnail' && (
+          <div className="va-layout">
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="card">
+                <div className="card-title" style={{ marginBottom: '16px' }}>Tải lên Ảnh thu nhỏ</div>
+                
+                {thumbImage ? (
+                  <div style={{ position: 'relative', marginBottom: '16px' }}>
+                    <img src={thumbImage.previewUrl} alt="Thumbnail preview" style={{ width: '100%', borderRadius: 'var(--radius-md)', objectFit: 'cover' }} />
+                    <button 
+                      onClick={() => { setThumbImage(null); setThumbAnalysis(null); }}
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', cursor: 'pointer' }}
+                    >
+                      <XCircle size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px', border: '2px dashed var(--border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', background: 'var(--bg-secondary)', marginBottom: '16px', transition: 'all 0.2s' }}
+                         onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
+                         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                    <Upload size={32} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
+                    <span style={{ fontWeight: 600 }}>Nhấn để chọn ảnh (JPG, PNG)</span>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                  </label>
+                )}
+
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleAnalyzeThumbnail} 
+                  disabled={thumbLoading || !thumbImage}
+                  style={{ width: '100%' }}
+                >
+                  {thumbLoading ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <ImageIcon size={16} />}
+                  Phân tích bằng Gemini Vision
+                </button>
+
+                {thumbError && (
+                  <div style={{ padding: '12px', background: 'var(--accent-red-dim)', color: 'var(--accent-red)', borderRadius: '8px', fontSize: '13px', marginTop: '16px' }}>
+                    ⚠️ {thumbError}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="card" style={{ height: '100%', minHeight: '400px' }}>
+                <div className="card-title" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Lightbulb size={18} style={{ color: 'var(--accent-yellow)' }} />
+                  Đánh giá từ Trợ lý AI
+                </div>
+                
+                {thumbLoading && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)' }}>
+                    <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: 'var(--accent-blue)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
+                    <p>Đang phân tích độ tương phản, văn bản và cảm xúc khuôn mặt...</p>
+                  </div>
+                )}
+
+                {!thumbLoading && thumbAnalysis && (
+                  <div className="ai-markdown-content" style={{ lineHeight: 1.6, fontSize: '14px', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
+                    {thumbAnalysis}
+                  </div>
+                )}
+
+                {!thumbLoading && !thumbAnalysis && !thumbError && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)', opacity: 0.5 }}>
+                    <ImageIcon size={48} style={{ marginBottom: '16px' }} />
+                    <p>Kết quả phân tích sẽ hiển thị tại đây.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

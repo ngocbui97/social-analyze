@@ -4,7 +4,7 @@ import { Users, TrendingUp, Eye, Video, Award, ChevronRight, BarChart2, Search, 
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import Topbar from '../components/Topbar';
 import { useAuth } from '../context/AuthContext';
-import { getChannelStats, searchYouTube, formatNumber } from '../services/youtube';
+import { getChannelStats, searchYouTube, formatNumber, getRecentVideos } from '../services/youtube';
 import { loadCompetitors, saveCompetitor, removeCompetitor } from '../services/supabase';
 import { useTranslation } from 'react-i18next';
 import './Competitors.css';
@@ -45,6 +45,54 @@ export default function Competitors() {
       }
     });
   }, [user?.email]);
+
+  const [competitorVideos, setCompetitorVideos] = useState([]);
+  const [loadingVideos, setLoadingVideos] = useState(false);
+
+  // Fetch recent videos for VPH calculation
+  useEffect(() => {
+    if (!accessToken || competitors.length === 0) return;
+    
+    let isMounted = true;
+    setLoadingVideos(true);
+    
+    const fetchAllRecent = async () => {
+      try {
+        const promises = competitors.map(c => 
+          getRecentVideos(accessToken, c.id, 4).catch(() => [])
+        );
+        const results = await Promise.all(promises);
+        const allVids = [];
+        
+        results.forEach((chVids, i) => {
+          chVids.forEach(v => {
+            const hoursOld = (new Date() - new Date(v.publishedAt)) / (1000 * 60 * 60);
+            // Show videos within last 14 days (336 hours)
+            if (hoursOld <= 336 && hoursOld > 0) {
+              allVids.push({
+                 ...v,
+                 channelName: competitors[i].title,
+                 channelAvatar: competitors[i].thumbnail,
+                 hoursOld,
+                 vph: Math.round(v.views / hoursOld)
+              });
+            }
+          });
+        });
+        
+        // Sort by Views Per Hour (velocity)
+        allVids.sort((a,b) => b.vph - a.vph);
+        if (isMounted) setCompetitorVideos(allVids.slice(0, 12));
+      } catch (e) {
+        console.error('Error fetching competitor videos:', e);
+      } finally {
+        if (isMounted) setLoadingVideos(false);
+      }
+    };
+    
+    fetchAllRecent();
+    return () => { isMounted = false; };
+  }, [accessToken, competitors]);
 
   const handleSearch = async () => {
     if (!search.trim()) return;
@@ -197,6 +245,45 @@ export default function Competitors() {
             </div>
           ))}
         </div>
+
+        {/* Competitor Velocity Radar (VPH) */}
+        {competitorVideos.length > 0 && (
+          <div className="card" style={{ marginTop: '20px' }}>
+            <div className="card-header">
+              <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingUp size={18} style={{ color: 'var(--accent-green)' }} /> 
+                Radar Đối thủ: Video đang thịnh hành (VPH)
+              </span>
+            </div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px' }}>
+              Theo dõi các video mới nhất của đối thủ và tốc độ tăng lượt xem mỗi giờ (Views Per Hour).
+            </div>
+             
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              {competitorVideos.map(v => (
+                <a key={v.id} href={`https://youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div style={{ display: 'flex', gap: '12px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border)', transition: 'all 0.2s', height: '100%' }} onMouseEnter={e => e.currentTarget.style.borderColor='var(--accent-blue)'} onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}>
+                    <img src={v.thumbnail} alt={v.title} style={{ width: 100, height: 60, objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>{v.title}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <img src={v.channelAvatar} alt="" style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover' }} /> {v.channelName}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '4px' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{Math.round(v.hoursOld)}h trước</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{formatNumber(v.views)} view</span>
+                          <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--accent-green)', background: 'rgba(34,211,165,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{formatNumber(v.vph)} VPH</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

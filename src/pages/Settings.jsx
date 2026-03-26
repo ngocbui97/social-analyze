@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { saveUserSettings, loadUserSettings } from '../services/supabase';
 import Topbar from '../components/Topbar';
 import { Key, Moon, Sun, Monitor, Trash2, User, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
@@ -20,18 +21,38 @@ export default function Settings() {
     if (savedKey) {
       setApiKey(savedKey);
     }
-  }, []);
+    
+    // Sync from Supabase if logged in
+    if (user?.email) {
+      loadUserSettings(user.email).then(settings => {
+        if (settings?.api_key) {
+          setApiKey(settings.api_key);
+          localStorage.setItem('ai_api_key', settings.api_key);
+        }
+      });
+    }
+  }, [user]);
 
-  const handleSaveKey = () => {
+  const handleSaveKey = async () => {
     if (!apiKey.trim()) return;
     localStorage.setItem('ai_api_key', apiKey.trim());
+    
+    if (user?.email) {
+      await saveUserSettings(user.email, { apiKey: apiKey.trim(), theme });
+    }
+    
     setSaveStatus(t('settings.savedSuccess'));
     setTimeout(() => setSaveStatus(''), 3000);
   };
 
-  const handleClearKey = () => {
+  const handleClearKey = async () => {
     localStorage.removeItem('ai_api_key');
     setApiKey('');
+    
+    if (user?.email) {
+      await saveUserSettings(user.email, { apiKey: null, theme });
+    }
+    
     setSaveStatus(t('settings.keyRemoved'));
     setTimeout(() => setSaveStatus(''), 3000);
   };

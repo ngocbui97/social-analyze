@@ -73,3 +73,42 @@ CREATE INDEX IF NOT EXISTS idx_feature_logs_created ON feature_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_email ON ai_conversations(user_email);
 CREATE INDEX IF NOT EXISTS idx_ai_conversations_session ON ai_conversations(session_id);
 CREATE INDEX IF NOT EXISTS idx_saved_competitors_email ON saved_competitors(user_email);
+
+-- ============================================
+-- 5. User settings (API keys, theme)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS user_settings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_email TEXT UNIQUE NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  api_key TEXT,
+  theme TEXT DEFAULT 'dark',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for anon" ON user_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_user_settings_email ON user_settings(user_email);
+
+-- ============================================
+-- 6. Sponsorship CRM deals
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS sponsorships (
+  id TEXT PRIMARY KEY,
+  user_email TEXT NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  brand_name TEXT NOT NULL,
+  contact_name TEXT,
+  status TEXT NOT NULL DEFAULT 'prospect' CHECK (status IN ('prospect', 'negotiating', 'closed')),
+  amount BIGINT DEFAULT 0,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE sponsorships ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for anon" ON sponsorships FOR ALL USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_sponsorships_email ON sponsorships(user_email);
+CREATE INDEX IF NOT EXISTS idx_sponsorships_status ON sponsorships(status);
+

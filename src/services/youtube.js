@@ -98,6 +98,31 @@ export async function getVideoDetails(token, videoId) {
 }
 
 /**
+ * Get top comments for a video
+ */
+export async function getVideoComments(token, videoId, maxResults = 20) {
+  try {
+    const data = await yt(
+      `/commentThreads?part=snippet&videoId=${videoId}&maxResults=${maxResults}&order=relevance`,
+      token
+    );
+    return data.items?.map(item => ({
+      id: item.id,
+      author: item.snippet.topLevelComment.snippet.authorDisplayName,
+      authorThumbnail: item.snippet.topLevelComment.snippet.authorProfileImageUrl,
+      text: item.snippet.topLevelComment.snippet.textOriginal,
+      likeCount: item.snippet.topLevelComment.snippet.likeCount,
+      publishedAt: item.snippet.topLevelComment.snippet.publishedAt,
+    })) || [];
+  } catch (err) {
+    if (err.message.includes('403') || err.message.includes('disabled')) {
+      return []; // Comments disabled
+    }
+    throw err;
+  }
+}
+
+/**
  * Search YouTube for a keyword and return video results + rough stats
  */
 export async function searchYouTube(token, query, maxResults = 15) {

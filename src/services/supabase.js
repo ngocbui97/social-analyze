@@ -176,3 +176,85 @@ export async function removeCompetitor(userEmail, channelId) {
     .eq('channel_id', channelId);
   if (error) console.error('[SocialIQ] removeCompetitor error:', error);
 }
+
+// ─── User Settings ───────────────────────────────────
+
+/** Load user settings (API keys, theme) */
+export async function loadUserSettings(userEmail) {
+  if (!supabase || !userEmail) return null;
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('*')
+    .eq('user_email', userEmail)
+    .single();
+  if (error && error.code !== 'PGRST116') {
+    // PGRST116 is "No rows found" which is fine for new users
+    console.error('[SocialIQ] loadUserSettings error:', error);
+  }
+  return data || null;
+}
+
+/** Save user settings (API keys, theme) */
+export async function saveUserSettings(userEmail, settings) {
+  if (!supabase || !userEmail) return;
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({
+      user_email: userEmail,
+      api_key: settings.apiKey,
+      theme: settings.theme,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_email' });
+  if (error) console.error('[SocialIQ] saveUserSettings error:', error);
+}
+
+// ─── CRM Sponsorships ────────────────────────────────
+
+/** Load sponsorships */
+export async function loadSponsorships(userEmail) {
+  if (!supabase || !userEmail) return [];
+  const { data, error } = await supabase
+    .from('sponsorships')
+    .select('*')
+    .eq('user_email', userEmail)
+    .order('created_at', { ascending: false });
+  if (error) console.error('[SocialIQ] loadSponsorships error:', error);
+  // Map snake_case to camelCase for the frontend
+  return (data || []).map(s => ({
+    id: s.id,
+    userEmail: s.user_email,
+    brandName: s.brand_name,
+    contactName: s.contact_name,
+    status: s.status,
+    amount: s.amount,
+    notes: s.notes
+  }));
+}
+
+/** Save/Upsert sponsorship */
+export async function saveSponsorship(s) {
+  if (!supabase || !s.userEmail || !s.id) return;
+  const { error } = await supabase
+    .from('sponsorships')
+    .upsert({
+      id: s.id,
+      user_email: s.userEmail,
+      brand_name: s.brandName,
+      contact_name: s.contactName || '',
+      status: s.status,
+      amount: s.amount || 0,
+      notes: s.notes || '',
+      updated_at: new Date().toISOString()
+    });
+  if (error) console.error('[SocialIQ] saveSponsorship error:', error);
+}
+
+/** Delete sponsorship */
+export async function deleteSponsorship(id) {
+  if (!supabase || !id) return;
+  const { error } = await supabase
+    .from('sponsorships')
+    .delete()
+    .eq('id', id);
+  if (error) console.error('[SocialIQ] deleteSponsorship error:', error);
+}
